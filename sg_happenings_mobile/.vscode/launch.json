@@ -9,7 +9,8 @@
             "name": "sg_happenings_mobile Debug - DEV",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "program": "lib/main_dev.dart",
             "args": [
                 "--flavor",
                 "dev"
@@ -19,7 +20,8 @@
             "name": "sg_happenings_mobile Debug - SIT",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "program": "lib/main_sit.dart",
             "args": [
                 "--flavor",
                 "sit"
@@ -29,7 +31,8 @@
             "name": "sg_happenings_mobile Debug - UAT",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "program": "lib/main_uat.dart",
             "args": [
                 "--flavor",
                 "uat"
@@ -39,7 +42,8 @@
             "name": "sg_happenings_mobile Profile - DEV",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart",
+            "flutterMode": "profile",
+            "program": "lib/main_dev.dart",
             "args": [
                 "--flavor",
                 "dev"
@@ -49,7 +53,8 @@
             "name": "sg_happenings_mobile Release - UAT",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart",
+            "flutterMode": "release",
+            "program": "lib/main_uat.dart",
             "args": [
                 "--flavor",
                 "uat"
@@ -59,7 +64,8 @@
             "name": "sg_happenings_mobile Release - PROD",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart",
+            "flutterMode": "release",
+            "program": "lib/main_production.dart",
             "args": [
                 "--flavor",
                 "prod"
