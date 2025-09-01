@@ -6,7 +6,7 @@
     "configurations": [
 
         {
-            "name": "sg_happenings_mobile DEV",
+            "name": "sg_happenings_mobile Debug - DEV",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
@@ -16,7 +16,7 @@
             ]
         },
         {
-            "name": "sg_happenings_mobile SIT",
+            "name": "sg_happenings_mobile Debug - SIT",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
@@ -26,7 +26,7 @@
             ]
         },
         {
-            "name": "sg_happenings_mobile UAT",
+            "name": "sg_happenings_mobile Debug - UAT",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
@@ -36,7 +36,27 @@
             ]
         },
         {
-            "name": "sg_happenings_mobile PROD",
+            "name": "sg_happenings_mobile Profile - DEV",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--flavor",
+                "dev"
+            ]
+        },
+        {
+            "name": "sg_happenings_mobile Release - UAT",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--flavor",
+                "uat"
+            ]
+        },
+        {
+            "name": "sg_happenings_mobile Release - PROD",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
