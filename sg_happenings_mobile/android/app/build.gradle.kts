@@ -39,29 +39,7 @@ android {
         }
     }
 
-    flavorDimensions += "environment"
-    productFlavors {
-        create("dev") {
-            dimension = "environment"
-            applicationIdSuffix = ".dev"
-            manifestPlaceholders["app_name"] = "Dev SG Happenings"
-        }
-        create("sit") {
-            dimension = "environment"
-            applicationIdSuffix = ".sit"
-            manifestPlaceholders["app_name"] = "SIT SG Happenings"
-        }
-        create("uat") {
-            dimension = "environment"
-            applicationIdSuffix = ".uat"
-            manifestPlaceholders["app_name"] = "UAT SG Happenings"
-        }
-        create("prod") {
-            dimension = "environment"
-            applicationIdSuffix = ".prod"
-            manifestPlaceholders["app_name"] = "SG Happenings"
-        }
-    }
+    
 }
 
 flutter {
