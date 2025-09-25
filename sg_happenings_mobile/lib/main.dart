@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'pages/splash/splash_page.dart';
 
 void main() {
+  print('App starting...');
   runApp(const MyApp());
 }
 
@@ -10,6 +11,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('MyApp building with SplashPage as home');
     return MaterialApp(
       title: 'SG Happenings',
       theme: ThemeData(
