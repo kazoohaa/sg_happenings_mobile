@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../forgot_password/forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,11 +37,15 @@ class _LoginPageState extends State<LoginPage> {
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
             children: [
-              const SizedBox(height: 260),
+              const SizedBox(height: 300),
               
-              // Input Fields
-              Column(
-                children: [
+              // Input Fields (narrow width)
+              Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: 320,
+                  child: Column(
+                    children: [
                   // Email Field
                   Container(
                     decoration: BoxDecoration(
@@ -101,37 +106,87 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
               
               const SizedBox(height: 32),
               
-              // Login Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Handle login logic here
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF6B35),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+              // Login Button (narrow width)
+              Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: 320,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Handle login logic here
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF6B35),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
                     ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Log in',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                    child: const Text(
+                      'Log in',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
               ),
               
+              const SizedBox(height: 16),
+
+              // Secondary actions (narrow width)
+              Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  width: 320,
+                  child: Column(
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordPage(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton(
+                        onPressed: () {
+                          // TODO: navigate to sign up
+                        },
+                        child: const Text(
+                          'New user? Sign up',
+                          style: TextStyle(
+                            color: Color(0xFFFF6B35),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
             ],
             ),
