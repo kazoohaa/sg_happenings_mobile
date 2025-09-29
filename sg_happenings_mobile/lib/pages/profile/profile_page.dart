@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../edit_profile/edit_profile_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -39,10 +40,10 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               // Profile options
-              _buildProfileOption(Icons.person_outline, 'Edit Profile'),
-              _buildProfileOption(Icons.settings_outlined, 'Settings'),
-              _buildProfileOption(Icons.help_outline, 'Help & Support'),
-              _buildProfileOption(Icons.logout, 'Logout'),
+              _buildProfileOption(context, Icons.person_outline, 'Edit Profile'),
+              _buildProfileOption(context, Icons.settings_outlined, 'Settings'),
+              _buildProfileOption(context, Icons.help_outline, 'Help & Support'),
+              _buildProfileOption(context, Icons.logout, 'Logout'),
             ],
           ),
         ),
@@ -50,7 +51,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileOption(IconData icon, String title) {
+  Widget _buildProfileOption(BuildContext context, IconData icon, String title) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -80,7 +81,14 @@ class ProfilePage extends StatelessWidget {
           color: Colors.grey[400],
         ),
         onTap: () {
-          // Handle tap
+          if (title == 'Edit Profile') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const EditProfilePage(),
+              ),
+            );
+          }
         },
       ),
     );
