@@ -127,34 +127,6 @@ class HomePage extends StatelessWidget {
           ),
         ),
       ),
-      // Bottom navigation (static)
-      bottomNavigationBar: Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            _NavItem(icon: Icons.home_rounded, label: 'Home', selected: true),
-            _NavItem(icon: Icons.receipt_long_rounded, label: ''),
-            _NavItem(icon: Icons.event_rounded, label: ''),
-            _NavItem(icon: Icons.person_rounded, label: ''),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -345,24 +317,5 @@ class _PosterTile extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  const _NavItem({required this.icon, required this.label, this.selected = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final Color base = selected ? const Color(0xFFFF6B35) : Colors.brown;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: base),
-        if (label.isNotEmpty)
-          Text(label, style: TextStyle(color: base, fontWeight: FontWeight.w700)),
-      ],
-    );
-  }
-}
 
 

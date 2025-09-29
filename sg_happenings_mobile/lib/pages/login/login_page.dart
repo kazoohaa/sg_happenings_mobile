@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../forgot_password/forgot_password_page.dart';
-import '../home/home_page.dart';
+import '../main_navigation/main_navigation.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -124,7 +124,7 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: () {
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (context) => const HomePage(),
+                          builder: (context) => const MainNavigation(),
                         ),
                       );
                     },
