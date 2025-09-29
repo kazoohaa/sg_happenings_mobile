@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../notifications/notifications_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -17,10 +18,16 @@ class HomePage extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.notifications_none_rounded, color: Colors.brown),
-                    ],
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsPage(),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.notifications_none_rounded, color: Colors.brown),
                   ),
                   Container(
                     width: 36,
@@ -39,7 +46,7 @@ class HomePage extends StatelessWidget {
                 'Welcome back,',
                 style: TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w800,x
                   color: Colors.black,
                 ),
               ),
@@ -114,10 +121,20 @@ class HomePage extends StatelessWidget {
 
               const SizedBox(height: 16),
               // Notification promo tile
-              _PromoTile(
-                leadingColor: const Color(0xFFFFC04D),
-                title: 'Get notified about\nupcoming events',
-                trailing: const Icon(Icons.chevron_right, color: Colors.brown),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsPage(),
+                    ),
+                  );
+                },
+                child: _PromoTile(
+                  leadingColor: const Color(0xFFFFC04D),
+                  title: 'Get notified about\nupcoming events',
+                  trailing: const Icon(Icons.chevron_right, color: Colors.brown),
+                ),
               ),
 
               const SizedBox(height: 12),
