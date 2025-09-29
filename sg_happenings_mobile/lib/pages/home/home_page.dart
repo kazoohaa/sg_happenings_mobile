@@ -46,7 +46,7 @@ class HomePage extends StatelessWidget {
                 'Welcome back,',
                 style: TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.w800,x
+                  fontWeight: FontWeight.w800,
                   color: Colors.black,
                 ),
               ),
