@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../notifications/notifications_page.dart';
+import '../event_poster_application/event_poster_application.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -139,7 +140,17 @@ class HomePage extends StatelessWidget {
 
               const SizedBox(height: 12),
               // Event posters promo tile
-              _PosterTile(),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EventPosterApplicationPage(),
+                    ),
+                  );
+                },
+                child: _PosterTile(),
+              ),
             ],
           ),
         ),
