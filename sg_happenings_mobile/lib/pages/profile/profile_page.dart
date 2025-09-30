@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../edit_profile/edit_profile_page.dart';
+import '../login/login_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -87,6 +88,13 @@ class ProfilePage extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => const EditProfilePage(),
               ),
+            );
+          } else if (title == 'Logout') {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (context) => const LoginPage(),
+              ),
+              (route) => false,
             );
           }
         },

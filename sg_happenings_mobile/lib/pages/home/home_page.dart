@@ -318,11 +318,11 @@ class _PosterTile extends StatelessWidget {
               children: [
                 Text(
                   'Event posters',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Want to become an\nevent poster?\nSubmit your application here',
+                  'Want to become an event poster?\nSubmit your application here',
                   style: TextStyle(fontSize: 12, color: Color(0xFF7A6F66)),
                 ),
               ],
