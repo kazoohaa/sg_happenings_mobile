@@ -38,14 +38,18 @@ class EventListItem {
   final String categoryName;
   final List<String> mediaUrls;
 
-  /// `false` when API [status] indicates cancelled or completed (browse list).
-  static final RegExp _browseHiddenStatus = RegExp(
-    r'\b(cancel(?:l)?ed|completed)\b',
-    caseSensitive: false,
-  );
+  static final RegExp _completedWord = RegExp(r'\bcompleted\b', caseSensitive: false);
+  static final RegExp _cancelWord =
+      RegExp(r'\bcancel(?:led|ed)?\b', caseSensitive: false);
 
-  bool get showsInBrowseList =>
-      status.isEmpty || !_browseHiddenStatus.hasMatch(status);
+  /// Whether this event should appear on the public browse list (e.g. Events tab).
+  /// Hides when [status] indicates completed or cancelled/canceled.
+  bool get showsInBrowseList {
+    if (status.isEmpty) return true;
+    if (_completedWord.hasMatch(status)) return false;
+    if (_cancelWord.hasMatch(status)) return false;
+    return true;
+  }
 
   factory EventListItem.fromJson(Map<String, dynamic> json) {
     return EventListItem(
