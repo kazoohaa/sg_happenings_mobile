@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-import 'api_config.dart';
+import 'event_media_item.dart';
 
 /// One row from `GET /events` → `{ "events": [ ... ] }`.
 class EventListItem {
@@ -19,7 +19,7 @@ class EventListItem {
     required this.status,
     required this.eventPosterName,
     required this.categoryName,
-    required this.mediaUrls,
+    required this.media,
   });
 
   final String eventId;
@@ -36,7 +36,7 @@ class EventListItem {
   final String status;
   final String eventPosterName;
   final String categoryName;
-  final List<String> mediaUrls;
+  final List<EventMediaItem> media;
 
   static final RegExp _completedWord = RegExp(r'\bcompleted\b', caseSensitive: false);
   static final RegExp _cancelWord =
@@ -67,8 +67,18 @@ class EventListItem {
       status: json['status'] as String? ?? '',
       eventPosterName: json['event_poster_name'] as String? ?? '',
       categoryName: json['category_name'] as String? ?? '',
-      mediaUrls: _stringList(json['media_urls']),
+      media: EventMediaItem.listFromApiEventJson(json),
     );
+  }
+
+  /// First image URL for list thumbnails (skips leading videos).
+  String? get primaryImageUrl {
+    for (final m in media) {
+      if (!m.isVideo) {
+        return m.resolvedUrl;
+      }
+    }
+    return null;
   }
 
   /// e.g. "Fri, Apr 12 • 7:00 PM" in local time.
@@ -77,12 +87,6 @@ class EventListItem {
     if (t == null) return 'Date TBD';
     final local = t.toLocal();
     return DateFormat('EEE, MMM d • h:mm a').format(local);
-  }
-
-  /// First image URL resolved against [ApiConfig.baseUrl] if relative.
-  String? get primaryImageUrl {
-    if (mediaUrls.isEmpty) return null;
-    return _resolveUrl(mediaUrls.first);
   }
 
   Map<String, dynamic> toDetailMap() {
@@ -100,7 +104,8 @@ class EventListItem {
       'capacity': capacity,
       'latitude': latitude,
       'longitude': longitude,
-      'media_urls': mediaUrls,
+      'media': media.map((m) => m.toJson()).toList(),
+      'media_urls': media.map((m) => m.url).toList(),
     };
   }
 
@@ -124,16 +129,4 @@ class EventListItem {
     return DateTime.tryParse(v);
   }
 
-  static List<String> _stringList(dynamic v) {
-    if (v is! List) return [];
-    return v.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
-  }
-
-  static String _resolveUrl(String url) {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    final base = Uri.parse(ApiConfig.baseUrl);
-    return base.resolve(url).toString();
-  }
 }

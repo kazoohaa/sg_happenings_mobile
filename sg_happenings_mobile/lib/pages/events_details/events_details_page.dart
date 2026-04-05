@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/api_config.dart';
+import '../../api/app_api.dart';
+import '../../api/event_media_item.dart';
+import '../../widgets/network_video_tile.dart';
 
 class EventsDetailsPage extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -41,10 +44,31 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
           ? widget.event['event_poster_name'].toString()
           : 'Organizer';
 
-  List<String> get _mediaUrls {
-    final m = widget.event['media_urls'];
-    if (m is! List) return [];
-    return m.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+  List<EventMediaItem> get _mediaItems {
+    final raw = Map<String, dynamic>.from(widget.event);
+    return EventMediaItem.listFromApiEventJson(raw);
+  }
+
+  /// ExoPlayer sends these headers on every byte request. Do **not** send
+  /// `Authorization: Bearer` to hosts like S3 — they are not your API and may
+  /// reject the request (ExoPlaybackException: Source error).
+  Map<String, String> _videoHttpHeadersFor(String absoluteUrl) {
+    try {
+      final media = Uri.parse(absoluteUrl);
+      final api = Uri.parse(ApiConfig.baseUrl);
+      if (media.host.isEmpty) return const {};
+      final sameOrigin = media.scheme == api.scheme &&
+          media.host == api.host &&
+          media.port == api.port;
+      if (!sameOrigin) {
+        return const {};
+      }
+    } catch (_) {
+      return const {};
+    }
+    final t = authTokenStore.accessToken;
+    if (t == null || t.isEmpty) return const {};
+    return {'Authorization': 'Bearer $t'};
   }
 
   double? get _lat => _toDouble(widget.event['latitude']);
@@ -127,7 +151,7 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
   @override
   Widget build(BuildContext context) {
     final tags = _categoryTags();
-    final urls = _mediaUrls;
+    final mediaItems = _mediaItems;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F3F0),
@@ -171,17 +195,17 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
                   child: SizedBox(
                     height: 220,
                     width: double.infinity,
-                    child: _buildGallery(urls),
+                    child: _buildGallery(mediaItems),
                   ),
                 ),
               ),
-              if (urls.length > 1)
+              if (mediaItems.length > 1)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      urls.length,
+                      mediaItems.length,
                       (i) => Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
                         width: 8,
@@ -390,8 +414,8 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
     );
   }
 
-  Widget _buildGallery(List<String> urls) {
-    if (urls.isEmpty) {
+  Widget _buildGallery(List<EventMediaItem> items) {
+    if (items.isEmpty) {
       return Container(
         color: const Color(0xFFD4C4B0),
         child: Center(
@@ -405,10 +429,19 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
     }
     return PageView.builder(
       controller: _galleryController,
-      itemCount: urls.length,
+      itemCount: items.length,
       onPageChanged: (i) => setState(() => _galleryIndex = i),
       itemBuilder: (context, index) {
-        final url = _resolveMediaUrl(urls[index]);
+        final item = items[index];
+        final url = item.resolvedUrl;
+        if (item.isVideo) {
+          return NetworkVideoTile(
+            key: ValueKey<String>(url),
+            url: url,
+            isActive: index == _galleryIndex,
+            httpHeaders: _videoHttpHeadersFor(url),
+          );
+        }
         return Image.network(
           url,
           fit: BoxFit.cover,
@@ -487,9 +520,3 @@ double? _toDouble(dynamic v) {
   return double.tryParse(v.toString());
 }
 
-String _resolveMediaUrl(String url) {
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  return Uri.parse(ApiConfig.baseUrl).resolve(url).toString();
-}

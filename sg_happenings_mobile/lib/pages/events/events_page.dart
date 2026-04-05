@@ -232,6 +232,25 @@ class _EventLeadingImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (event.media.isEmpty) {
+      return _categoryPlaceholder(event.categoryName);
+    }
+    final first = event.media.first;
+    if (first.isVideo) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[800],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(
+          Icons.play_circle_filled,
+          color: Colors.white70,
+          size: 44,
+        ),
+      );
+    }
     final url = event.primaryImageUrl;
     if (url != null) {
       return Image.network(
