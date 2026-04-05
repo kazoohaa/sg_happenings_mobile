@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
+import 'api/app_api.dart';
 import 'pages/splash/splash_page.dart';
 
-void main() {
-  print('App starting...');
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await authTokenStore.restore();
   runApp(const MyApp());
 }
 

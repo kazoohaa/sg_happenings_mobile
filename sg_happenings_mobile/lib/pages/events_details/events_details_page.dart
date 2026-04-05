@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../api/api_config.dart';
 
 class EventsDetailsPage extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -11,17 +15,127 @@ class EventsDetailsPage extends StatefulWidget {
 
 class _EventsDetailsPageState extends State<EventsDetailsPage> {
   bool _isBookmarked = false;
+  final PageController _galleryController = PageController();
+  int _galleryIndex = 0;
+
+  @override
+  void dispose() {
+    _galleryController.dispose();
+    super.dispose();
+  }
+
+  String get _title => widget.event['title']?.toString() ?? 'Event';
+
+  String get _location => widget.event['location']?.toString() ?? '';
+
+  String get _description {
+    final d = widget.event['description']?.toString().trim();
+    if (d == null || d.isEmpty) {
+      return 'No description provided.';
+    }
+    return d;
+  }
+
+  String get _organizer =>
+      widget.event['event_poster_name']?.toString().trim().isNotEmpty == true
+          ? widget.event['event_poster_name'].toString()
+          : 'Organizer';
+
+  List<String> get _mediaUrls {
+    final m = widget.event['media_urls'];
+    if (m is! List) return [];
+    return m.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+
+  double? get _lat => _toDouble(widget.event['latitude']);
+
+  double? get _lng => _toDouble(widget.event['longitude']);
+
+  String _formattedDateLine() {
+    final start = _parseDate(widget.event['start_time']);
+    final end = _parseDate(widget.event['end_time']);
+    if (start == null) {
+      return widget.event['date']?.toString() ?? 'Date TBD';
+    }
+    final ls = start.toLocal();
+    final le = end?.toLocal();
+    final datePart = DateFormat('EEEE, MMMM d').format(ls);
+    final startPart = DateFormat('h:mm a').format(ls);
+    if (le == null) {
+      return '$datePart · $startPart';
+    }
+    final sameDay = ls.year == le.year && ls.month == le.month && ls.day == le.day;
+    if (sameDay) {
+      return '$datePart · $startPart – ${DateFormat('h:mm a').format(le)}';
+    }
+    return '${DateFormat('EEE, MMM d, h:mm a').format(ls)} – ${DateFormat('EEE, MMM d, h:mm a').format(le)}';
+  }
+
+  List<String> _categoryTags() {
+    final raw = widget.event['category_name']?.toString().trim();
+    if (raw == null || raw.isEmpty) return [];
+    for (final sep in [',', '|', '/']) {
+      if (raw.contains(sep)) {
+        return raw
+            .split(sep)
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+    }
+    return [raw];
+  }
+
+  Future<void> _openMaps() async {
+    final loc = _location;
+    Uri uri;
+    final lat = _lat;
+    final lng = _lng;
+    if (lat != null && lng != null) {
+      uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${lat.toString()},${lng.toString()}',
+      );
+    } else if (loc.isNotEmpty) {
+      uri = Uri.parse(
+        'https://www.google.com/maps/search?q=${Uri.encodeComponent(loc)}',
+      );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No location available for maps.')),
+        );
+      }
+      return;
+    }
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tags = _categoryTags();
+    final urls = _mediaUrls;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3F0), // Light beige background
+      backgroundColor: const Color(0xFFF5F3F0),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -50,45 +164,59 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
                   ],
                 ),
               ),
-
-              // Event banner image
-              Container(
-                height: 200,
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  color: const Color(0xFFD4C4B0), // Beige background for placeholder
+                  child: SizedBox(
+                    height: 220,
+                    width: double.infinity,
+                    child: _buildGallery(urls),
+                  ),
                 ),
-                child: _buildEventBanner(),
               ),
-
+              if (urls.length > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      urls.length,
+                      (i) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == _galleryIndex
+                              ? const Color(0xFFFF6B35)
+                              : Colors.grey[300],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
-
-              // Event details
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Event title
                     Text(
-                      'Art Expo 2024',
+                      _title,
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey[800],
                       ),
                     ),
-
                     const SizedBox(height: 8),
-
-                    // Date and time with bookmark
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
-                            'Saturday, July 20 · 2:00 PM – 6:00 PM',
+                            _formattedDateLine(),
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
@@ -102,95 +230,122 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
                             });
                           },
                           child: Icon(
-                            _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                            color: _isBookmarked ? const Color(0xFFFF6B35) : Colors.grey[600],
+                            _isBookmarked
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                            color: _isBookmarked
+                                ? const Color(0xFFFF6B35)
+                                : Colors.grey[600],
                             size: 24,
                           ),
                         ),
                       ],
                     ),
-
+                    if (widget.event['status']?.toString().isNotEmpty == true) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.event['status'].toString(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
-
-                    // Location section
                     _buildSection(
                       'Location',
                       [
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               child: Text(
-                                'Singapore Art Museum',
+                                _location.isEmpty ? 'TBA' : _location,
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey[700],
                                 ),
                               ),
                             ),
-                            Container(
-                              width: 60,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
+                            const SizedBox(width: 8),
+                            Material(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                              child: InkWell(
+                                onTap: _openMaps,
                                 borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Stack(
-                                children: [
-                                  Center(
-                                    child: Icon(
-                                      Icons.map,
-                                      color: Colors.grey[400],
-                                      size: 20,
-                                    ),
-                                  ),
-                                  Positioned(
-                                    right: 8,
-                                    top: 8,
-                                    child: Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFFF6B35),
-                                        shape: BoxShape.circle,
+                                child: SizedBox(
+                                  width: 60,
+                                  height: 40,
+                                  child: Stack(
+                                    children: [
+                                      Center(
+                                        child: Icon(
+                                          Icons.map,
+                                          color: Colors.grey[600],
+                                          size: 22,
+                                        ),
                                       ),
-                                    ),
+                                      Positioned(
+                                        right: 8,
+                                        top: 8,
+                                        child: Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFFF6B35),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-
-                    // Description section
                     _buildSection(
                       'Description',
                       [
                         Text(
-                          'Join us for Art Expo 2024, a celebration of contemporary art featuring renowned artists from around the globe.',
+                          _description,
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey[700],
                             height: 1.5,
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            _buildTag('Art'),
-                            const SizedBox(width: 8),
-                            _buildTag('Exhibition'),
-                          ],
-                        ),
+                        if (tags.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: tags.map(_buildTag).toList(),
+                          ),
+                        ],
                       ],
                     ),
-
+                    if (widget.event['capacity'] != null) ...[
+                      const SizedBox(height: 24),
+                      _buildSection(
+                        'Capacity',
+                        [
+                          Text(
+                            '${widget.event['capacity']}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 24),
-
-                    // Organizer section
                     _buildSection(
                       'Organizer',
                       [
@@ -210,59 +365,20 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            Text(
-                              'SG Events',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey[700],
+                            Expanded(
+                              child: Text(
+                                _organizer,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 32),
-
-                    // Schedule section
-                    _buildSectionHeader('Schedule', 'See more'),
-                    const SizedBox(height: 16),
-                    _buildScheduleItem('Opening Reception', '6:00 PM – 7:00 PM'),
-                    const SizedBox(height: 12),
-                    _buildScheduleItem('Gallery Tour', '7:00 PM – 8:30 PM'),
-
-                    const SizedBox(height: 32),
-
-                    // Similar events section
-                    _buildSectionHeader('Similar events', ''),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 120,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _buildSimilarEventCard(
-                            'Coding Workshop',
-                            '24 May · 2:00 PM',
-                            Icons.code,
-                          ),
-                          const SizedBox(width: 12),
-                          _buildSimilarEventCard(
-                            'Art Exhibition',
-                            '7 Jun · 10:00 AM',
-                            Icons.palette,
-                          ),
-                          const SizedBox(width: 12),
-                          _buildSimilarEventCard(
-                            'Music Concert',
-                            '14 Jun · 7:00 PM',
-                            Icons.music_note,
-                          ),
-                        ],
-                      ),
-                    ),
-
                     const SizedBox(height: 32),
                   ],
                 ),
@@ -274,90 +390,48 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
     );
   }
 
-  Widget _buildEventBanner() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildGallery(List<String> urls) {
+    if (urls.isEmpty) {
+      return Container(
         color: const Color(0xFFD4C4B0),
-      ),
-      child: Stack(
-        children: [
-          // Abstract art representation
-          Positioned(
-            left: 20,
-            top: 20,
-            child: Container(
-              width: 60,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFF8D6E63),
-                borderRadius: BorderRadius.circular(8),
-              ),
+        child: Center(
+          child: Icon(
+            Icons.image_not_supported_outlined,
+            size: 56,
+            color: Colors.grey[500],
+          ),
+        ),
+      );
+    }
+    return PageView.builder(
+      controller: _galleryController,
+      itemCount: urls.length,
+      onPageChanged: (i) => setState(() => _galleryIndex = i),
+      itemBuilder: (context, index) {
+        final url = _resolveMediaUrl(urls[index]);
+        return Image.network(
+          url,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => Container(
+            color: const Color(0xFFD4C4B0),
+            child: Icon(
+              Icons.broken_image_outlined,
+              size: 48,
+              color: Colors.grey[500],
             ),
           ),
-          Positioned(
-            left: 90,
-            top: 30,
-            child: Container(
-              width: 50,
-              height: 70,
-              decoration: BoxDecoration(
-                color: const Color(0xFF5D4037),
-                borderRadius: BorderRadius.circular(8),
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: const Color(0xFFE8E0D8),
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-            ),
-          ),
-          Positioned(
-            right: 20,
-            top: 25,
-            child: Container(
-              width: 70,
-              height: 75,
-              decoration: BoxDecoration(
-                color: const Color(0xFF6D4C41),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          // People silhouettes
-          Positioned(
-            bottom: 20,
-            left: 30,
-            child: Container(
-              width: 20,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A3429),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 20,
-            left: 60,
-            child: Container(
-              width: 18,
-              height: 45,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A3429),
-                borderRadius: BorderRadius.circular(9),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 20,
-            right: 40,
-            child: Container(
-              width: 15,
-              height: 35,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A3429),
-                borderRadius: BorderRadius.circular(7.5),
-              ),
-            ),
-          ),
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -379,31 +453,6 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
     );
   }
 
-  Widget _buildSectionHeader(String title, String subtitle) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[800],
-          ),
-        ),
-        if (subtitle.isNotEmpty)
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-      ],
-    );
-  }
-
   Widget _buildTag(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -421,98 +470,26 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
       ),
     );
   }
+}
 
-  Widget _buildScheduleItem(String title, String time) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0EDE8),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+DateTime? _parseDate(dynamic v) {
+  if (v == null) return null;
+  if (v is DateTime) return v;
+  if (v is! String || v.isEmpty) return null;
+  return DateTime.tryParse(v);
+}
 
-  Widget _buildSimilarEventCard(String title, String date, IconData icon) {
-    return GestureDetector(
-      onTap: () {
-        // Navigate to event details
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EventsDetailsPage(
-              event: {
-                'title': title,
-                'date': date,
-                'icon': icon,
-              },
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 120,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0EDE8),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF6B35),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              date,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+double? _toDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is double) return v;
+  if (v is int) return v.toDouble();
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString());
+}
+
+String _resolveMediaUrl(String url) {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
   }
+  return Uri.parse(ApiConfig.baseUrl).resolve(url).toString();
 }

@@ -1,17 +1,39 @@
 import 'package:flutter/material.dart';
+
+import '../../api/app_api.dart';
+import '../../api/event_list_item.dart';
+import '../../api/events_repository.dart';
 import '../events_details/events_details_page.dart';
 
-class EventsPage extends StatelessWidget {
+class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
+
+  @override
+  State<EventsPage> createState() => _EventsPageState();
+}
+
+class _EventsPageState extends State<EventsPage> {
+  late Future<List<EventListItem>> _eventsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventsFuture = eventsRepository.listEvents();
+  }
+
+  Future<void> _refresh() async {
+    final next = eventsRepository.listEvents();
+    setState(() => _eventsFuture = next);
+    await next;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3F0), // Light beige background
+      backgroundColor: const Color(0xFFF5F3F0),
       body: SafeArea(
         child: Column(
           children: [
-            // Header with title
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
@@ -27,8 +49,6 @@ class EventsPage extends StatelessWidget {
                 ],
               ),
             ),
-            
-            // Search bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
@@ -38,7 +58,7 @@ class EventsPage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       spreadRadius: 1,
                       blurRadius: 3,
                       offset: const Offset(0, 1),
@@ -74,16 +94,47 @@ class EventsPage extends StatelessWidget {
                 ),
               ),
             ),
-            
             const SizedBox(height: 20),
-            
-            // Events list
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                itemCount: 6, // 6 events as shown in the image
-                itemBuilder: (context, index) {
-                  return _buildEventCard(context, index);
+              child: FutureBuilder<List<EventListItem>>(
+                future: _eventsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    final message = snapshot.error is EventsApiException
+                        ? (snapshot.error as EventsApiException).message
+                        : 'Something went wrong.';
+                    return _EventsErrorBody(
+                      message: message,
+                      onRetry: () {
+                        setState(() {
+                          _eventsFuture = eventsRepository.listEvents();
+                        });
+                      },
+                    );
+                  }
+                  final events = snapshot.data ?? [];
+                  if (events.isEmpty) {
+                    return _EventsEmptyBody(onRetry: () {
+                      setState(() {
+                        _eventsFuture = eventsRepository.listEvents();
+                      });
+                    });
+                  }
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      itemCount: events.length,
+                      itemBuilder: (context, index) {
+                        return _EventListCard(event: events[index]);
+                      },
+                    ),
+                  );
                 },
               ),
             ),
@@ -92,42 +143,22 @@ class EventsPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildEventCard(BuildContext context, int index) {
-    final events = [
-      {
-        'title': 'Live Concert',
-        'date': 'Fri, Apr 12 • 7:00 PM',
-        'location': 'Esplanade Hall',
-        'image': _buildConcertImage(),
-      },
-      {
-        'title': 'Art Exhibition',
-        'date': 'Sat, Apr 20 • 10:00 AM',
-        'location': 'City Gallery',
-        'image': _buildArtImage(),
-      },
-      {
-        'title': 'Cooking Workshop',
-        'date': 'Sun, Apr 28 • 2:00 PM',
-        'location': 'Community Center',
-        'image': _buildCookingImage(),
-      },
-    ];
+class _EventListCard extends StatelessWidget {
+  const _EventListCard({required this.event});
 
-    final event = events[index % events.length];
+  final EventListItem event;
 
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => EventsDetailsPage(
-              event: {
-                'title': event['title'],
-                'date': event['date'],
-                'location': event['location'],
-              },
+              event: event.toDetailMap(),
             ),
           ),
         );
@@ -135,11 +166,11 @@ class EventsPage extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16.0),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0EDE8), // Slightly darker beige for cards
+          color: const Color(0xFFF0EDE8),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               spreadRadius: 1,
               blurRadius: 3,
               offset: const Offset(0, 1),
@@ -150,20 +181,17 @@ class EventsPage extends StatelessWidget {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              // Event image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: event['image'] as Widget,
+                child: _EventLeadingImage(event: event),
               ),
               const SizedBox(width: 12),
-              
-              // Event details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      event['title'] as String,
+                      event.title,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -172,7 +200,7 @@ class EventsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      event['date'] as String,
+                      event.formattedStart,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -180,7 +208,7 @@ class EventsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      event['location'] as String,
+                      event.location,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -195,53 +223,148 @@ class EventsPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildConcertImage() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFF6B35), // Orange background
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(
-        Icons.mic,
-        color: Colors.white,
-        size: 40,
-      ),
+class _EventLeadingImage extends StatelessWidget {
+  const _EventLeadingImage({required this.event});
+
+  final EventListItem event;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = event.primaryImageUrl;
+    if (url != null) {
+      return Image.network(
+        url,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _categoryPlaceholder(event.categoryName),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return SizedBox(
+            width: 80,
+            height: 80,
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.grey[400],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return _categoryPlaceholder(event.categoryName);
+  }
+}
+
+Widget _categoryPlaceholder(String categoryName) {
+  final style = _categoryStyle(categoryName);
+  return Container(
+    width: 80,
+    height: 80,
+    decoration: BoxDecoration(
+      color: style.color,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Icon(
+      style.icon,
+      color: Colors.white,
+      size: 40,
+    ),
+  );
+}
+
+({Color color, IconData icon}) _categoryStyle(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('music') ||
+      n.contains('concert') ||
+      n.contains('live')) {
+    return (color: const Color(0xFFFF6B35), icon: Icons.mic);
+  }
+  if (n.contains('art') ||
+      n.contains('gallery') ||
+      n.contains('exhibition')) {
+    return (color: const Color(0xFFFFA726), icon: Icons.palette);
+  }
+  if (n.contains('food') ||
+      n.contains('cook') ||
+      n.contains('dining') ||
+      n.contains('workshop')) {
+    return (color: const Color(0xFF8D6E63), icon: Icons.restaurant);
+  }
+  return (color: const Color(0xFF78909C), icon: Icons.event);
+}
+
+class _EventsErrorBody extends StatelessWidget {
+  const _EventsErrorBody({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.sizeOf(context).height * 0.35,
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[700], fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildArtImage() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFA726), // Light orange background
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(
-        Icons.palette,
-        color: Colors.white,
-        size: 40,
-      ),
+class _EventsEmptyBody extends StatelessWidget {
+  const _EventsEmptyBody({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
+        Center(
+          child: Text(
+            'No events yet.',
+            style: TextStyle(color: Colors.grey[700], fontSize: 16),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            onPressed: onRetry,
+            child: const Text('Refresh'),
+          ),
+        ),
+      ],
     );
   }
-
-  Widget _buildCookingImage() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: const Color(0xFF8D6E63), // Brown background
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(
-        Icons.restaurant,
-        color: Colors.white,
-        size: 40,
-      ),
-    );
-  }
-
 }

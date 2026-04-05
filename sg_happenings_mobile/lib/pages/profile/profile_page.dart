@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../api/app_api.dart';
 import '../edit_profile/edit_profile_page.dart';
 import '../login/login_page.dart';
 
@@ -90,6 +92,7 @@ class ProfilePage extends StatelessWidget {
               ),
             );
           } else if (title == 'Logout') {
+            authRepository.logout();
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
                 builder: (context) => const LoginPage(),

@@ -121,24 +121,6 @@ class HomePage extends StatelessWidget {
               ),
 
               const SizedBox(height: 16),
-              // Notification promo tile
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationsPage(),
-                    ),
-                  );
-                },
-                child: _PromoTile(
-                  leadingColor: const Color(0xFFFFC04D),
-                  title: 'Get notified about\nupcoming events',
-                  trailing: const Icon(Icons.chevron_right, color: Colors.brown),
-                ),
-              ),
-
-              const SizedBox(height: 12),
               // Event posters promo tile
               GestureDetector(
                 onTap: () {
@@ -250,52 +232,6 @@ class _EventCard extends StatelessWidget {
             subtitle,
             style: const TextStyle(fontSize: 12, color: Color(0xFF7A6F66)),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PromoTile extends StatelessWidget {
-  final Color leadingColor;
-  final String title;
-  final Widget? trailing;
-
-  const _PromoTile({
-    required this.leadingColor,
-    required this.title,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: leadingColor,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.notifications_active, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (trailing != null) trailing!,
         ],
       ),
     );
