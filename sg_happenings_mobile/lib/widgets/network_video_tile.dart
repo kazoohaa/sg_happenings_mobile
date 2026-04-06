@@ -14,11 +14,14 @@ class NetworkVideoTile extends StatefulWidget {
     required this.url,
     this.isActive = true,
     this.httpHeaders = const <String, String>{},
+    this.videoFit = BoxFit.cover,
   });
 
   final String url;
   final bool isActive;
   final Map<String, String> httpHeaders;
+  /// How the video frame is fitted inside the tile (e.g. [BoxFit.contain] for fullscreen).
+  final BoxFit videoFit;
 
   @override
   State<NetworkVideoTile> createState() => _NetworkVideoTileState();
@@ -131,15 +134,14 @@ class _NetworkVideoTileState extends State<NetworkVideoTile> {
           ? CupertinoTheme(
               data: const CupertinoThemeData(brightness: Brightness.dark),
               child: SizedBox.expand(
-                child: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  onPressed: _togglePlay,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _togglePlay,
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       FittedBox(
-                        fit: BoxFit.cover,
+                        fit: widget.videoFit,
                         child: SizedBox(
                           width: c.value.size.width,
                           height: c.value.size.height,

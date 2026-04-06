@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 
 import 'api_paths.dart';
 import 'auth_token_store.dart';
+import 'jwt_payload.dart';
 import 'sg_api_client.dart';
+import 'user_me.dart';
 
 /// Set `AUTH_LOGIN_AS_FORM=true` when the API uses OAuth2-style
 /// `application/x-www-form-urlencoded` (e.g. `OAuth2PasswordRequestForm`).
@@ -55,12 +57,34 @@ class AuthRepository {
       }
 
       await _tokens.setAccessToken(token);
+      await _persistPosterHint(Map<String, dynamic>.from(data), token);
     } on DioException catch (e) {
       throw AuthException(_messageFromDio(e));
     }
   }
 
   Future<void> logout() => _tokens.clear();
+
+  Future<void> _persistPosterHint(Map<String, dynamic> data, String token) async {
+    var flag = UserMe.inferExplicitPosterFlag(data);
+    if (flag == null) {
+      final u = UserMe.fromJson(data);
+      if (u.isEventPoster) flag = true;
+    }
+    if (flag == null) {
+      final payload = decodeJwtPayload(token);
+      if (payload != null) {
+        flag = UserMe.inferExplicitPosterFlag(payload);
+        if (flag == null) {
+          final u = UserMe.fromJson(payload);
+          if (u.isEventPoster) flag = true;
+        }
+      }
+    }
+    if (flag != null) {
+      await _tokens.setEventPoster(flag);
+    }
+  }
 
   static String _messageFromDio(DioException e) {
     final data = e.response?.data;

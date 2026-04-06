@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../api/api_config.dart';
-import '../../api/app_api.dart';
 import '../../api/event_media_item.dart';
+import '../../api/playback_http_headers.dart';
+import '../../widgets/fullscreen_event_media_viewer.dart';
 import '../../widgets/network_video_tile.dart';
 
 class EventsDetailsPage extends StatefulWidget {
@@ -47,28 +47,6 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
   List<EventMediaItem> get _mediaItems {
     final raw = Map<String, dynamic>.from(widget.event);
     return EventMediaItem.listFromApiEventJson(raw);
-  }
-
-  /// ExoPlayer sends these headers on every byte request. Do **not** send
-  /// `Authorization: Bearer` to hosts like S3 — they are not your API and may
-  /// reject the request (ExoPlaybackException: Source error).
-  Map<String, String> _videoHttpHeadersFor(String absoluteUrl) {
-    try {
-      final media = Uri.parse(absoluteUrl);
-      final api = Uri.parse(ApiConfig.baseUrl);
-      if (media.host.isEmpty) return const {};
-      final sameOrigin = media.scheme == api.scheme &&
-          media.host == api.host &&
-          media.port == api.port;
-      if (!sameOrigin) {
-        return const {};
-      }
-    } catch (_) {
-      return const {};
-    }
-    final t = authTokenStore.accessToken;
-    if (t == null || t.isEmpty) return const {};
-    return {'Authorization': 'Bearer $t'};
   }
 
   double? get _lat => _toDouble(widget.event['latitude']);
@@ -195,7 +173,36 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
                   child: SizedBox(
                     height: 220,
                     width: double.infinity,
-                    child: _buildGallery(mediaItems),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildGallery(
+                          mediaItems,
+                          onImageTap: () => _openFullscreenMedia(mediaItems),
+                        ),
+                        if (mediaItems.isNotEmpty)
+                          Positioned(
+                            right: 8,
+                            bottom: 8,
+                            child: Material(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(8),
+                              child: InkWell(
+                                onTap: () => _openFullscreenMedia(mediaItems),
+                                borderRadius: BorderRadius.circular(8),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(8),
+                                  child: Icon(
+                                    Icons.fullscreen_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -414,7 +421,30 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
     );
   }
 
-  Widget _buildGallery(List<EventMediaItem> items) {
+  Future<void> _openFullscreenMedia(List<EventMediaItem> items) async {
+    if (items.isEmpty || !mounted) return;
+    final idx = await Navigator.of(context).push<int>(
+      MaterialPageRoute<int>(
+        fullscreenDialog: true,
+        builder: (context) => FullscreenEventMediaViewer(
+          items: items,
+          initialIndex: _galleryIndex,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (idx != null && idx >= 0 && idx < items.length) {
+      setState(() => _galleryIndex = idx);
+      if (_galleryController.hasClients) {
+        _galleryController.jumpToPage(idx);
+      }
+    }
+  }
+
+  Widget _buildGallery(
+    List<EventMediaItem> items, {
+    VoidCallback? onImageTap,
+  }) {
     if (items.isEmpty) {
       return Container(
         color: const Color(0xFFD4C4B0),
@@ -439,30 +469,34 @@ class _EventsDetailsPageState extends State<EventsDetailsPage> {
             key: ValueKey<String>(url),
             url: url,
             isActive: index == _galleryIndex,
-            httpHeaders: _videoHttpHeadersFor(url),
+            httpHeaders: playbackVideoHeadersForUrl(url),
           );
         }
-        return Image.network(
-          url,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          errorBuilder: (_, __, ___) => Container(
-            color: const Color(0xFFD4C4B0),
-            child: Icon(
-              Icons.broken_image_outlined,
-              size: 48,
-              color: Colors.grey[500],
-            ),
-          ),
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              color: const Color(0xFFE8E0D8),
-              child: const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
+        return GestureDetector(
+          onTap: onImageTap,
+          behavior: HitTestBehavior.opaque,
+          child: Image.network(
+            url,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            errorBuilder: (_, __, ___) => Container(
+              color: const Color(0xFFD4C4B0),
+              child: Icon(
+                Icons.broken_image_outlined,
+                size: 48,
+                color: Colors.grey[500],
               ),
-            );
-          },
+            ),
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return Container(
+                color: const Color(0xFFE8E0D8),
+                child: const Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              );
+            },
+          ),
         );
       },
     );

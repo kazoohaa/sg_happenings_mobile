@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import '../home/home_page.dart';
+
+import '../../api/app_api.dart';
+import '../../api/poster_role_resolver.dart';
 import '../events/events_page.dart';
+import '../home/home_page.dart';
+import '../poster_dashboard/poster_dashboard_page.dart';
 import '../profile/profile_page.dart';
 
+/// Bottom shell: **Dashboard** tab only when `role` is **Event Poster** (see [UserMe]).
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
@@ -12,20 +17,66 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  bool _roleLoaded = false;
+  bool _isEventPoster = false;
 
-  final List<Widget> _pages = [
-    const HomePage(),
-    const EventsPage(),
-    const ProfilePage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    final cached = authTokenStore.isEventPosterCached;
+    if (cached != null) {
+      _isEventPoster = cached;
+      _roleLoaded = true;
+    }
+    _loadRole();
+  }
 
+  Future<void> _loadRole() async {
+    final poster = await resolveEventPosterRole();
+    if (!mounted) return;
+    setState(() {
+      _isEventPoster = poster;
+      _roleLoaded = true;
+    });
+  }
+
+  List<Widget> get _pages {
+    if (_isEventPoster) {
+      return const [
+        HomePage(),
+        EventsPage(),
+        PosterDashboardPage(),
+        ProfilePage(),
+      ];
+    }
+    return const [
+      HomePage(),
+      EventsPage(),
+      ProfilePage(),
+    ];
+  }
+
+  int get _profileIndex => _isEventPoster ? 3 : 2;
+
+  void _onNavTap(int index) {
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_roleLoaded) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final pages = _pages;
+    final safeIndex = _currentIndex.clamp(0, pages.length - 1);
+
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+        index: safeIndex,
+        children: pages,
       ),
       bottomNavigationBar: Container(
         height: 64,
@@ -37,19 +88,21 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildNavItem(Icons.home_rounded, 'Home', 0),
             _buildNavItem(Icons.event_rounded, 'Events', 1),
-            _buildNavItem(Icons.person_rounded, 'Profile', 2),
+            if (_isEventPoster)
+              _buildNavItem(Icons.dashboard_rounded, 'Dashboard', 2),
+            _buildNavItem(Icons.person_rounded, 'Profile', _profileIndex),
           ],
         ),
       ),
@@ -60,26 +113,27 @@ class _MainNavigationState extends State<MainNavigation> {
     final bool isSelected = _currentIndex == index;
     final Color color = isSelected ? const Color(0xFFFF6B35) : Colors.brown;
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color),
-          if (isSelected)
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onNavTap(index),
+        behavior: HitTestBehavior.opaque,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 26),
+            if (isSelected)
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
