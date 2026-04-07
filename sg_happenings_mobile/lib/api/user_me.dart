@@ -5,12 +5,14 @@
 class UserMe {
   const UserMe({
     required this.isEventPoster,
+    required this.isAdmin,
     this.username,
     this.email,
     this.userId,
   });
 
   final bool isEventPoster;
+  final bool isAdmin;
   final String? username;
   final String? email;
 
@@ -68,8 +70,25 @@ class UserMe {
         }
       }
     }
+    bool admin = false;
+    final roleStr = json['role']?.toString();
+    if (roleStr != null && roleStr.trim().isNotEmpty) {
+      admin = normalizeRole(roleStr) == 'admin';
+    }
+    if (!admin) {
+      final roles = json['roles'];
+      if (roles is List) {
+        for (final r in roles) {
+          if (normalizeRole(r.toString()) == 'admin') {
+            admin = true;
+            break;
+          }
+        }
+      }
+    }
     return UserMe(
       isEventPoster: poster,
+      isAdmin: admin,
       username: json['username'] as String? ?? json['name'] as String?,
       email: json['email'] as String?,
       userId: _parseUserId(json),

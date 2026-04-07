@@ -7,6 +7,7 @@ import 'category_option.dart';
 import 'create_event_payload.dart';
 import 'event_application_create_payload.dart';
 import 'event_list_item.dart';
+import 'event_poster_application_create_payload.dart';
 import 'sg_api_client.dart';
 import 'submission_row.dart';
 
@@ -15,10 +16,46 @@ class EventPosterRepository {
 
   final SgApiClient _api;
 
+  /// Apply to become an event poster (creates an application for `/users/me`).
+  ///
+  /// Your backend rejects duplicates with HTTP 409 when a Pending application exists.
+  Future<void> createEventPosterApplication(EventPosterApplicationCreatePayload payload) async {
+    try {
+      await _api.dio.post<dynamic>(
+        ApiPaths.eventPosterApplications,
+        data: payload.toJson(),
+      );
+    } on DioException catch (e) {
+      throw PosterApiException(_dioMessage(e));
+    }
+  }
+
   Future<List<CategoryOption>> listCategories() async {
     try {
       final response = await _api.dio.get<dynamic>(ApiPaths.categories);
       final data = response.data;
+      if (data is Map) {
+        for (final k in const ['categories', 'items']) {
+          final raw = data[k];
+          if (raw is List) {
+            // Some backends return `["Promotions", "Movies", ...]` instead of objects.
+            if (raw.isNotEmpty && raw.first is String) {
+              return raw
+                  .whereType<String>()
+                  .map((s) => s.trim())
+                  .where((s) => s.isNotEmpty)
+                  .map((s) => CategoryOption(id: s, name: s))
+                  .toList();
+            }
+            return raw
+                .whereType<Map>()
+                .map((e) => CategoryOption.fromJson(Map<String, dynamic>.from(e)))
+                .where((c) => c.id.isNotEmpty || c.name.isNotEmpty)
+                .map((c) => c.id.isNotEmpty ? c : CategoryOption(id: c.name, name: c.name))
+                .toList();
+          }
+        }
+      }
       final maps = _mapsFromEnvelope(data, keys: const ['categories', 'items']);
       return maps.map(CategoryOption.fromJson).where((c) => c.id.isNotEmpty).toList();
     } on DioException catch (e) {

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../api/app_api.dart';
+import '../../api/event_poster_application_create_payload.dart';
+import '../../api/event_poster_repository.dart';
+
 class EventPosterApplicationPage extends StatefulWidget {
   const EventPosterApplicationPage({super.key});
 
@@ -15,12 +19,43 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _orgController = TextEditingController();
   final TextEditingController _portfolioController = TextEditingController();
-
-  final List<String> _categories = ['Music', 'Art', 'Food', 'Theatre'];
-  final Set<String> _selectedCategories = {'Music', 'Art'}; // preselected per image
-
-  String? _operatingArea;
+  final TextEditingController _descriptionController = TextEditingController();
   bool _agreed = false;
+  bool _submitting = false;
+  bool _roleChecked = false;
+  bool _blockedByRole = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _guardAgainstPosterOrAdmin();
+  }
+
+  Future<void> _guardAgainstPosterOrAdmin() async {
+    try {
+      final me = await usersRepository.getMe();
+      final blocked = me.isEventPoster || me.isAdmin;
+      if (!mounted) return;
+      if (blocked) {
+        setState(() {
+          _roleChecked = true;
+          _blockedByRole = true;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('You already have access as an event poster/admin.')),
+          );
+          Navigator.of(context).maybePop();
+        });
+        return;
+      }
+      setState(() => _roleChecked = true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _roleChecked = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -29,11 +64,26 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
     _phoneController.dispose();
     _orgController.dispose();
     _portfolioController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_roleChecked) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F3F0),
+        body: SafeArea(
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+    if (_blockedByRole) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F3F0),
+        body: SafeArea(child: SizedBox.shrink()),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF5F3F0),
       body: SafeArea(
@@ -45,6 +95,18 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.arrow_back_rounded),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   'Apply to be an\nEvent Poster',
                   style: TextStyle(
@@ -65,25 +127,8 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
                 _field('Organization', _orgController, TextInputType.text),
                 const SizedBox(height: 12),
                 _field('Portfolio/Website', _portfolioController, TextInputType.url),
-
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  children: _categories.map((c) => _chip(c)).toList(),
-                ),
-
-                const SizedBox(height: 12),
-                _operatingAreasDropdown(),
-
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _lightButton('ID Verification'),
-                    const SizedBox(width: 12),
-                    Expanded(child: _uploadButton()),
-                  ],
-                ),
+                _descriptionField(),
 
                 const SizedBox(height: 12),
                 Row(
@@ -117,7 +162,7 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
                     Expanded(
                       child: _primaryAction(
                         label: 'Submit',
-                        onTap: _submit,
+                        onTap: _submitting ? null : _submit,
                       ),
                     ),
                   ],
@@ -135,7 +180,7 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
   Widget _field(String hint, TextEditingController controller, TextInputType type) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.65),
+        color: Colors.white.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(12),
       ),
       child: TextFormField(
@@ -152,102 +197,24 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
     );
   }
 
-  Widget _chip(String label) {
-    final bool selected = _selectedCategories.contains(label);
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          if (selected) {
-            _selectedCategories.remove(label);
-          } else {
-            _selectedCategories.add(label);
-          }
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFE0C2) : const Color(0xFFF7EEDC),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Colors.brown.shade700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _operatingAreasDropdown() {
+  Widget _descriptionField() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.65),
+        color: Colors.white.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _operatingArea,
-          hint: const Text('Operating areas', style: TextStyle(color: Color(0xFF7A6F66))),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF7A6F66)),
-          items: const [
-            DropdownMenuItem(value: 'Central', child: Text('Central')),
-            DropdownMenuItem(value: 'East', child: Text('East')),
-            DropdownMenuItem(value: 'West', child: Text('West')),
-            DropdownMenuItem(value: 'North', child: Text('North')),
-            DropdownMenuItem(value: 'South', child: Text('South')),
-          ],
-          onChanged: (v) => setState(() => _operatingArea = v),
+      child: TextFormField(
+        controller: _descriptionController,
+        keyboardType: TextInputType.multiline,
+        minLines: 4,
+        maxLines: 6,
+        decoration: const InputDecoration(
+          hintText: 'Description',
+          hintStyle: TextStyle(color: Color(0xFF7A6F66)),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
-      ),
-    );
-  }
-
-  Widget _lightButton(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0EDE8),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF514B45),
-        ),
-      ),
-    );
-  }
-
-  Widget _uploadButton() {
-    return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upload clicked'),
-            backgroundColor: Color(0xFFFF6B35),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0EDE8),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: const Text(
-          'Upload file',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF514B45),
-          ),
-        ),
+        validator: (val) => (val == null || val.trim().isEmpty) ? 'Required' : null,
       ),
     );
   }
@@ -258,7 +225,7 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
       child: Container(
         height: 48,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.4),
+          color: Colors.white.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFD8D2C6)),
         ),
@@ -276,30 +243,38 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
     );
   }
 
-  Widget _primaryAction({required String label, required VoidCallback onTap}) {
+  Widget _primaryAction({required String label, required VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         height: 48,
         decoration: BoxDecoration(
-          color: const Color(0xFFFF6B35),
+          color: onTap == null
+              ? const Color(0xFFFF6B35).withValues(alpha: 0.55)
+              : const Color(0xFFFF6B35),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Center(
-          child: Text(
-            'Submit',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+        child: Center(
+          child: _submitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
         ),
       ),
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_agreed) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -314,12 +289,41 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Application submitted!'),
-        backgroundColor: Color(0xFFFF6B35),
-      ),
-    );
+    setState(() => _submitting = true);
+    try {
+      final payload = EventPosterApplicationCreatePayload(
+        organization: _orgController.text.trim().isEmpty ? null : _orgController.text.trim(),
+        website: _portfolioController.text.trim().isEmpty ? null : _portfolioController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      );
+      await eventPosterRepository.createEventPosterApplication(payload);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Application submitted!'),
+          backgroundColor: Color(0xFFFF6B35),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } on PosterApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not submit application.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 }
 

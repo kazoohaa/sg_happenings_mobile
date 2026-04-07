@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../api/app_api.dart';
+import '../../api/category_option.dart';
 import '../../api/event_list_item.dart';
 import '../../api/events_repository.dart';
 import '../event_poster_application/event_poster_application.dart';
@@ -20,11 +21,38 @@ class _HomePageState extends State<HomePage> {
   List<EventListItem> _events = [];
   bool _loadingEvents = true;
   String? _eventsError;
+  bool _showPosterApplication = true;
+  List<CategoryOption> _categories = [];
 
   @override
   void initState() {
     super.initState();
+    _showPosterApplication = authTokenStore.isEventPosterCached != true;
+    _loadRoleFlags();
+    _loadCategories();
     _loadEvents();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final list = await eventPosterRepository.listCategories();
+      if (!mounted) return;
+      setState(() => _categories = list);
+    } catch (_) {
+      // Keep the UI working even if categories fail to load.
+    }
+  }
+
+  Future<void> _loadRoleFlags() async {
+    try {
+      final me = await usersRepository.getMe();
+      if (!mounted) return;
+      setState(() {
+        _showPosterApplication = !(me.isEventPoster || me.isAdmin);
+      });
+    } catch (_) {
+      // If role lookup fails, keep current behavior (default is to show for non-poster).
+    }
   }
 
   /// [silent] is used for pull-to-refresh: keep the list/map visible instead of
@@ -160,9 +188,10 @@ class _HomePageState extends State<HomePage> {
                   child: Row(
                     children: [
                       _chip('Trending now', highlighted: true),
-                      _chip('Music'),
-                      _chip('Art'),
-                      _chip('Food'),
+                      ..._categories
+                          .where((c) => c.name.trim().isNotEmpty)
+                          .take(4)
+                          .map((c) => _chip(c.name)),
                       _chip('More'),
                     ],
                   ),
@@ -173,17 +202,18 @@ class _HomePageState extends State<HomePage> {
                   child: _buildEventStrip(),
                 ),
                 const SizedBox(height: 16),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (context) => const EventPosterApplicationPage(),
-                      ),
-                    );
-                  },
-                  child: _PosterTile(),
-                ),
+                if (_showPosterApplication)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const EventPosterApplicationPage(),
+                        ),
+                      );
+                    },
+                    child: _PosterTile(),
+                  ),
               ],
             ),
           ),
@@ -346,11 +376,13 @@ class _HomeEventStripCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 2),
-            Text(
-              '${event.formattedStart}\n${event.location}',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF7A6F66)),
+            Expanded(
+              child: Text(
+                '${event.formattedStart}\n${event.location}',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF7A6F66)),
+              ),
             ),
           ],
         ),
@@ -393,12 +425,18 @@ class _PlaceholderEventCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF7A6F66)),
+          Expanded(
+            child: Text(
+              subtitle,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF7A6F66)),
+            ),
           ),
         ],
       ),

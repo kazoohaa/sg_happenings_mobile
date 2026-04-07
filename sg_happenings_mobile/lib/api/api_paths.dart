@@ -8,6 +8,9 @@ abstract final class ApiPaths {
   static const uploadsEventMedia = '/uploads/event-media';
   static const categories = '/categories';
 
+  /// Apply to become an event poster (creates an application row for `/users/me`).
+  static const eventPosterApplications = '/event-poster-applications';
+
   /// Authenticated event poster: approved / live events this user manages.
   static const eventPosterEvents = '/event-poster/events';
   /// Pending moderation queue for this poster.
