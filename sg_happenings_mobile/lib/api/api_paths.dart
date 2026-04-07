@@ -9,7 +9,8 @@ abstract final class ApiPaths {
   static const categories = '/categories';
 
   /// Apply to become an event poster (creates an application row for `/users/me`).
-  static const eventPosterApplications = '/event-poster-applications';
+  /// Backend route: POST `/event-posters`
+  static const eventPosterApplications = '/event-posters';
 
   /// Authenticated event poster: approved / live events this user manages.
   static const eventPosterEvents = '/event-poster/events';

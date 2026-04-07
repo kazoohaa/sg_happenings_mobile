@@ -38,7 +38,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _showPosterApplication = authTokenStore.isEventPosterCached != true;
+    _showPosterApplication = authTokenStore.isEventPosterCached != true &&
+        !authTokenStore.hasPendingPosterApplicationSubmitted;
     _loadRoleFlags();
     _loadCategories();
     _loadEvents();
@@ -58,8 +59,13 @@ class _HomePageState extends State<HomePage> {
     try {
       final me = await usersRepository.getMe();
       if (!mounted) return;
+      if (me.isEventPoster && authTokenStore.hasPendingPosterApplicationSubmitted) {
+        await authTokenStore.setPosterApplicationPending(false);
+      }
+      if (!mounted) return;
       setState(() {
-        _showPosterApplication = !(me.isEventPoster || me.isAdmin);
+        _showPosterApplication = !(me.isEventPoster || me.isAdmin) &&
+            !authTokenStore.hasPendingPosterApplicationSubmitted;
       });
     } catch (_) {
       // If role lookup fails, keep current behavior (default is to show for non-poster).
@@ -236,12 +242,16 @@ class _HomePageState extends State<HomePage> {
                 if (_showPosterApplication)
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
+                      Navigator.push<bool>(
                         context,
-                        MaterialPageRoute<void>(
+                        MaterialPageRoute<bool>(
                           builder: (context) => const EventPosterApplicationPage(),
                         ),
-                      );
+                      ).then((submitted) {
+                        if (submitted == true && mounted) {
+                          setState(() => _showPosterApplication = false);
+                        }
+                      });
                     },
                     child: _PosterTile(),
                   ),

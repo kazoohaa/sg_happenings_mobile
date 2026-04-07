@@ -26,7 +26,10 @@ class EventPosterRepository {
         data: payload.toJson(),
       );
     } on DioException catch (e) {
-      throw PosterApiException(_dioMessage(e));
+      throw PosterApiException(
+        _dioMessage(e),
+        httpStatus: e.response?.statusCode,
+      );
     }
   }
 
@@ -288,9 +291,10 @@ class EventPosterRepository {
 }
 
 class PosterApiException implements Exception {
-  PosterApiException(this.message);
+  PosterApiException(this.message, {this.httpStatus});
 
   final String message;
+  final int? httpStatus;
 
   @override
   String toString() => message;

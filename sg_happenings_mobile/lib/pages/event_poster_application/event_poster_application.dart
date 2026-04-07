@@ -24,19 +24,19 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
   bool _submitting = false;
   bool _roleChecked = false;
   bool _blockedByRole = false;
+  bool _alreadySubmittedPending = false;
 
   @override
   void initState() {
     super.initState();
-    _guardAgainstPosterOrAdmin();
+    _bootstrap();
   }
 
-  Future<void> _guardAgainstPosterOrAdmin() async {
+  Future<void> _bootstrap() async {
     try {
       final me = await usersRepository.getMe();
-      final blocked = me.isEventPoster || me.isAdmin;
       if (!mounted) return;
-      if (blocked) {
+      if (me.isEventPoster || me.isAdmin) {
         setState(() {
           _roleChecked = true;
           _blockedByRole = true;
@@ -50,11 +50,15 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
         });
         return;
       }
-      setState(() => _roleChecked = true);
     } catch (_) {
-      if (!mounted) return;
-      setState(() => _roleChecked = true);
+      // Network / profile errors: still allow form unless local pending blocks below.
     }
+    if (!mounted) return;
+    final pending = authTokenStore.hasPendingPosterApplicationSubmitted;
+    setState(() {
+      _alreadySubmittedPending = pending;
+      _roleChecked = true;
+    });
   }
 
   @override
@@ -82,6 +86,73 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
       return const Scaffold(
         backgroundColor: Color(0xFFF5F3F0),
         body: SafeArea(child: SizedBox.shrink()),
+      );
+    }
+    if (_alreadySubmittedPending) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F3F0),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.arrow_back_rounded),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Application status',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.brown.shade900,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFFFE0C2)),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Submitted',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF514B45),
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Pending review. You cannot submit another application while one is pending.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: Color(0xFF7A6F66),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     return Scaffold(
@@ -297,16 +368,29 @@ class _EventPosterApplicationPageState extends State<EventPosterApplicationPage>
         description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       );
       await eventPosterRepository.createEventPosterApplication(payload);
+      await authTokenStore.setPosterApplicationPending(true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Application submitted!'),
+          content: Text('Submitted — pending review.'),
           backgroundColor: Color(0xFFFF6B35),
         ),
       );
       Navigator.of(context).pop(true);
     } on PosterApiException catch (e) {
       if (!mounted) return;
+      if (e.httpStatus == 409) {
+        await authTokenStore.setPosterApplicationPending(true);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Submitted — pending review.'),
+            backgroundColor: Color(0xFFFF6B35),
+          ),
+        );
+        Navigator.of(context).pop(true);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.message),

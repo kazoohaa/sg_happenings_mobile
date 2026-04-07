@@ -63,75 +63,141 @@ class _ProfilePageState extends State<ProfilePage> {
           : null,
       body: SafeArea(
         top: !widget.showBackButton,
-        child: FutureBuilder<UserMe>(
-          future: _meFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Colors.brown));
-            }
-            final me = snapshot.data;
-            final error = snapshot.error;
-            final displayName = me?.username?.trim().isNotEmpty == true
-                ? me!.username!
-                : (me?.email?.trim().isNotEmpty == true ? me!.email! : 'Profile');
-            final subtitle = me?.email != null && me!.email!.trim().isNotEmpty
-                ? me.email
-                : (error != null ? _loadErrorLine(error) : null);
+        child: ValueListenableBuilder<int>(
+          valueListenable: authTokenStore.posterApplicationPendingRevision,
+          builder: (context, _, __) {
+            return FutureBuilder<UserMe>(
+              future: _meFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.brown));
+                }
+                final me = snapshot.data;
+                final error = snapshot.error;
+                final displayName = me?.username?.trim().isNotEmpty == true
+                    ? me!.username!
+                    : (me?.email?.trim().isNotEmpty == true ? me!.email! : 'Profile');
+                final subtitle = me?.email != null && me!.email!.trim().isNotEmpty
+                    ? me.email
+                    : (error != null ? _loadErrorLine(error) : null);
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  if (!widget.showBackButton) const SizedBox(height: 24),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDE9C8),
-                      borderRadius: BorderRadius.circular(50),
-                    ),
-                    child: const Icon(Icons.person, size: 50, color: Colors.brown),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    displayName,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      subtitle,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: error != null ? Colors.red.shade700 : const Color(0xFF7A6F66),
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      if (!widget.showBackButton) const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDE9C8),
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: const Icon(Icons.person, size: 50, color: Colors.brown),
                       ),
-                    ),
-                  ],
-                  if (error != null) ...[
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: _retryLoad,
-                      icon: const Icon(Icons.refresh, color: Colors.brown),
-                      label: const Text('Retry', style: TextStyle(color: Colors.brown)),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  _buildProfileOption(context, Icons.person_outline, 'Edit Profile'),
-                  _buildProfileOption(context, Icons.settings_outlined, 'Settings'),
-                  _buildProfileOption(context, Icons.help_outline, 'Help & Support'),
-                  _buildProfileOption(context, Icons.logout, 'Logout'),
-                ],
-              ),
+                      const SizedBox(height: 16),
+                      Text(
+                        displayName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          subtitle,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: error != null ? Colors.red.shade700 : const Color(0xFF7A6F66),
+                          ),
+                        ),
+                      ],
+                      if (_showPendingPosterBanner(me)) ...[
+                        const SizedBox(height: 16),
+                        _pendingPosterStatusCard(),
+                      ],
+                      if (error != null) ...[
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: _retryLoad,
+                          icon: const Icon(Icons.refresh, color: Colors.brown),
+                          label: const Text('Retry', style: TextStyle(color: Colors.brown)),
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                      _buildProfileOption(context, Icons.person_outline, 'Edit Profile'),
+                      _buildProfileOption(context, Icons.settings_outlined, 'Settings'),
+                      _buildProfileOption(context, Icons.help_outline, 'Help & Support'),
+                      _buildProfileOption(context, Icons.logout, 'Logout'),
+                    ],
+                  ),
+                );
+              },
             );
           },
         ),
+      ),
+    );
+  }
+
+  bool _showPendingPosterBanner(UserMe? me) {
+    if (!authTokenStore.hasPendingPosterApplicationSubmitted) return false;
+    if (me?.isEventPoster == true) return false;
+    return true;
+  }
+
+  Widget _pendingPosterStatusCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE0C2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.08),
+            spreadRadius: 0,
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.hourglass_top_rounded, color: Colors.orange.shade800, size: 26),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Event poster application',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.brown.shade900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Submitted — pending review. We will update you when it is processed.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
