@@ -6,6 +6,7 @@ import '../events/events_page.dart';
 import '../home/home_page.dart';
 import '../poster_dashboard/poster_dashboard_page.dart';
 import '../profile/profile_page.dart';
+import '../../widgets/chatbot_corner_button.dart';
 
 /// Bottom shell: **Dashboard** tab only when `role` is **Event Poster** (see [UserMe]).
 class MainNavigation extends StatefulWidget {
@@ -74,9 +75,15 @@ class _MainNavigationState extends State<MainNavigation> {
     final safeIndex = _currentIndex.clamp(0, pages.length - 1);
 
     return Scaffold(
-      body: IndexedStack(
-        index: safeIndex,
-        children: pages,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IndexedStack(
+            index: safeIndex,
+            children: pages,
+          ),
+          const ChatbotCornerButton(),
+        ],
       ),
       bottomNavigationBar: Container(
         height: 64,
