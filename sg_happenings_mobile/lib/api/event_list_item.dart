@@ -11,6 +11,7 @@ class EventListItem {
     required this.title,
     required this.description,
     required this.location,
+    this.postalCode,
     this.latitude,
     this.longitude,
     this.startTime,
@@ -28,6 +29,10 @@ class EventListItem {
   final String title;
   final String description;
   final String location;
+
+  /// Singapore-style postal (e.g. 6 digits). Used to place map pins when lat/lng are absent.
+  final String? postalCode;
+
   final double? latitude;
   final double? longitude;
   final DateTime? startTime;
@@ -71,6 +76,10 @@ class EventListItem {
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       location: json['location'] as String? ?? '',
+      postalCode: _parsePostal(json['postal_code'] ??
+          json['postalCode'] ??
+          json['postcode'] ??
+          json['zip']),
       latitude: _toDouble(json['latitude']),
       longitude: _toDouble(json['longitude']),
       startTime: _parseDate(json['start_time']),
@@ -106,6 +115,7 @@ class EventListItem {
       'title': title,
       'date': formattedStart,
       'location': location,
+      if (postalCode != null) 'postal_code': postalCode,
       'event_id': eventId,
       'description': description,
       'status': status,
@@ -139,6 +149,12 @@ class EventListItem {
   static DateTime? _parseDate(dynamic v) {
     if (v == null || v is! String || v.isEmpty) return null;
     return DateTime.tryParse(v);
+  }
+
+  static String? _parsePostal(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
   }
 
 }

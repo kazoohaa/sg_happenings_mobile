@@ -13,18 +13,53 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
-  late Future<List<EventListItem>> _eventsFuture;
+  /// Loaded events (updated on first load and on pull-to-refresh).
+  List<EventListItem> _events = [];
+
+  /// Only the first load shows a blocking spinner; refresh keeps the list.
+  bool _initialLoading = true;
+
+  Object? _loadError;
 
   @override
   void initState() {
     super.initState();
-    _eventsFuture = eventsRepository.listEvents();
+    _loadInitial();
+  }
+
+  Future<void> _loadInitial() async {
+    setState(() {
+      _loadError = null;
+      _initialLoading = true;
+    });
+    try {
+      final list = await eventsRepository.listEvents();
+      if (!mounted) return;
+      setState(() {
+        _events = list;
+        _initialLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e;
+        _initialLoading = false;
+      });
+    }
   }
 
   Future<void> _refresh() async {
-    final next = eventsRepository.listEvents();
-    setState(() => _eventsFuture = next);
-    await next;
+    try {
+      final list = await eventsRepository.listEvents();
+      if (!mounted) return;
+      setState(() => _events = list);
+    } catch (e) {
+      if (!mounted) return;
+      final message = e is EventsApiException ? e.message : 'Could not refresh.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   @override
@@ -96,51 +131,49 @@ class _EventsPageState extends State<EventsPage> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: FutureBuilder<List<EventListItem>>(
-                future: _eventsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting &&
-                      !snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    final message = snapshot.error is EventsApiException
-                        ? (snapshot.error as EventsApiException).message
-                        : 'Something went wrong.';
-                    return _EventsErrorBody(
-                      message: message,
-                      onRetry: () {
-                        setState(() {
-                          _eventsFuture = eventsRepository.listEvents();
-                        });
-                      },
-                    );
-                  }
-                  final events = snapshot.data ?? [];
-                  if (events.isEmpty) {
-                    return _EventsEmptyBody(onRetry: () {
-                      setState(() {
-                        _eventsFuture = eventsRepository.listEvents();
-                      });
-                    });
-                  }
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      itemCount: events.length,
-                      itemBuilder: (context, index) {
-                        return _EventListCard(event: events[index]);
-                      },
-                    ),
-                  );
-                },
-              ),
+              child: _buildBody(),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_initialLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null) {
+      final message = _loadError is EventsApiException
+          ? (_loadError! as EventsApiException).message
+          : 'Something went wrong.';
+      return _EventsErrorBody(
+        message: message,
+        onRetry: _loadInitial,
+      );
+    }
+    return RefreshIndicator(
+      color: Colors.brown,
+      onRefresh: _refresh,
+      child: _events.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              children: [
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).height * 0.45,
+                  child: _EventsEmptyBody(onRetry: _loadInitial),
+                ),
+              ],
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              itemCount: _events.length,
+              itemBuilder: (context, index) {
+                return _EventListCard(event: _events[index]);
+              },
+            ),
     );
   }
 }
@@ -366,24 +399,21 @@ class _EventsEmptyBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(height: MediaQuery.sizeOf(context).height * 0.35),
-        Center(
-          child: Text(
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
             'No events yet.',
             style: TextStyle(color: Colors.grey[700], fontSize: 16),
           ),
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: TextButton(
+          const SizedBox(height: 16),
+          TextButton(
             onPressed: onRetry,
             child: const Text('Refresh'),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

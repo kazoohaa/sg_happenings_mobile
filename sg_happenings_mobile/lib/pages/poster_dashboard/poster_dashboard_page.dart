@@ -29,13 +29,23 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
     _bootstrap();
   }
 
-  Future<void> _bootstrap() async {
-    setState(() {
-      _loading = true;
-      _approvedError = null;
-      _pendingError = null;
-      _historyError = null;
-    });
+  /// [blocking] false is for pull-to-refresh: reload data without swapping the
+  /// body to a blocking spinner (keeps [RefreshIndicator] stable).
+  Future<void> _bootstrap({bool blocking = true}) async {
+    if (blocking) {
+      setState(() {
+        _loading = true;
+        _approvedError = null;
+        _pendingError = null;
+        _historyError = null;
+      });
+    } else {
+      setState(() {
+        _approvedError = null;
+        _pendingError = null;
+        _historyError = null;
+      });
+    }
 
     await Future.wait([
       _loadApproved(),
@@ -244,7 +254,7 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
       backgroundColor: const Color(0xFFF5F3F0),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _bootstrap,
+          onRefresh: () => _bootstrap(blocking: false),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [

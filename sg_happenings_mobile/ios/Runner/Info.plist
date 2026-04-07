@@ -52,5 +52,7 @@
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to attach event images and videos.</string>
+	<key>GMSApiKey</key>
+	<string>YOUR_IOS_GOOGLE_MAPS_API_KEY</string>
 </dict>
 </plist>

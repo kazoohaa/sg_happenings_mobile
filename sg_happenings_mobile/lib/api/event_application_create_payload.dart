@@ -9,6 +9,7 @@ class EventApplicationCreatePayload {
     required this.title,
     required this.description,
     required this.location,
+    this.postalCode,
     this.latitude,
     this.longitude,
     required this.startDatetime,
@@ -22,6 +23,7 @@ class EventApplicationCreatePayload {
   final String title;
   final String description;
   final String location;
+  final String? postalCode;
   final double? latitude;
   final double? longitude;
   final DateTime startDatetime;
@@ -30,6 +32,7 @@ class EventApplicationCreatePayload {
   final List<String> mediaUrls;
 
   Map<String, dynamic> toJson() {
+    final pc = postalCode?.trim();
     return {
       'event_poster_id': eventPosterId,
       'category_ids': categoryIds,
@@ -37,6 +40,7 @@ class EventApplicationCreatePayload {
       'title': title,
       'description': description,
       'location': location,
+      if (pc != null && pc.isNotEmpty) 'postal_code': pc,
       'latitude': latitude,
       'longitude': longitude,
       'start_datetime': startDatetime.toUtc().toIso8601String(),

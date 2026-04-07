@@ -29,6 +29,7 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
   late final TextEditingController _title;
   late final TextEditingController _description;
   late final TextEditingController _location;
+  late final TextEditingController _postalCode;
   late final TextEditingController _latitude;
   late final TextEditingController _longitude;
   late final TextEditingController _categoryIdManual;
@@ -54,6 +55,7 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
     _title = TextEditingController(text: e?.title ?? '');
     _description = TextEditingController(text: e?.description ?? '');
     _location = TextEditingController(text: e?.location ?? '');
+    _postalCode = TextEditingController(text: e?.postalCode ?? '');
     _latitude = TextEditingController(
       text: e?.latitude != null ? _coordText(e!.latitude!) : '',
     );
@@ -117,6 +119,7 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
     _title.dispose();
     _description.dispose();
     _location.dispose();
+    _postalCode.dispose();
     _latitude.dispose();
     _longitude.dispose();
     _categoryIdManual.dispose();
@@ -328,6 +331,7 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
 
     final lat = _latValue();
     final lon = _lonValue();
+    final postal = _postalCode.text.trim();
 
     if (_start == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -380,6 +384,7 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
           title: _title.text.trim(),
           description: _description.text.trim(),
           location: _location.text.trim(),
+          postalCode: postal.isEmpty ? null : postal,
           categoryIds: cats,
           startTime: _start,
           endTime: _end,
@@ -408,6 +413,7 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
           title: _title.text.trim(),
           description: _description.text.trim(),
           location: _location.text.trim(),
+          postalCode: postal.isEmpty ? null : postal,
           latitude: lat,
           longitude: lon,
           startDatetime: _start!,
@@ -498,6 +504,13 @@ class _CreateEditEventPageState extends State<CreateEditEventPage> {
               _field(
                 label: 'Location *',
                 controller: _location,
+                isRequired: true,
+              ),
+              const SizedBox(height: 12),
+              _field(
+                label: 'Postal code *',
+                controller: _postalCode,
+                hint: 'e.g. 238858',
                 isRequired: true,
               ),
               const SizedBox(height: 12),

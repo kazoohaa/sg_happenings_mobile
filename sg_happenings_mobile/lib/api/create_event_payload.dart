@@ -7,6 +7,7 @@ class CreateEventPayload {
     required this.title,
     required this.description,
     required this.location,
+    this.postalCode,
     required this.categoryIds,
     this.startTime,
     this.endTime,
@@ -19,6 +20,7 @@ class CreateEventPayload {
   final String title;
   final String description;
   final String location;
+  final String? postalCode;
   final List<String> categoryIds;
   final DateTime? startTime;
   final DateTime? endTime;
@@ -28,10 +30,12 @@ class CreateEventPayload {
   final List<String>? mediaUrls;
 
   Map<String, dynamic> toJson() {
+    final pc = postalCode?.trim();
     return {
       'title': title,
       'description': description,
       'location': location,
+      if (pc != null && pc.isNotEmpty) 'postal_code': pc,
       'category_ids': categoryIds,
       if (categoryIds.isNotEmpty) 'category_id': categoryIds.first,
       if (startTime != null) 'start_time': startTime!.toUtc().toIso8601String(),
