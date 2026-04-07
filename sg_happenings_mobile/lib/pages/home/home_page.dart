@@ -23,6 +23,17 @@ class _HomePageState extends State<HomePage> {
   String? _eventsError;
   bool _showPosterApplication = true;
   List<CategoryOption> _categories = [];
+  String? _selectedCategoryKey;
+
+  List<EventListItem> get _filteredEvents {
+    final key = _selectedCategoryKey?.trim().toLowerCase();
+    if (key == null || key.isEmpty) return _events;
+    return _events.where((e) {
+      if (e.categoryId.trim().toLowerCase() == key) return true;
+      if (e.categoryName.trim().toLowerCase() == key) return true;
+      return false;
+    }).toList();
+  }
 
   @override
   void initState() {
@@ -187,19 +198,39 @@ class _HomePageState extends State<HomePage> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _chip('Trending now', highlighted: true),
+                      _filterChip(
+                        label: 'Trending now',
+                        selected: _selectedCategoryKey == null,
+                        onTap: () => setState(() => _selectedCategoryKey = null),
+                      ),
                       ..._categories
                           .where((c) => c.name.trim().isNotEmpty)
                           .take(4)
-                          .map((c) => _chip(c.name)),
-                      _chip('More'),
+                          .map(
+                            (c) => _filterChip(
+                              label: c.name,
+                              selected: _selectedCategoryKey == (c.id.isNotEmpty ? c.id : c.name),
+                              onTap: () => setState(
+                                () => _selectedCategoryKey = c.id.isNotEmpty ? c.id : c.name,
+                              ),
+                            ),
+                          ),
+                      _filterChip(
+                        label: 'More',
+                        selected: false,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('More categories coming soon.')),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 160,
-                  child: _buildEventStrip(),
+                  child: _buildEventStrip(_filteredEvents),
                 ),
                 const SizedBox(height: 16),
                 if (_showPosterApplication)
@@ -222,11 +253,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEventStrip() {
-    if (_loadingEvents && _events.isEmpty) {
+  Widget _buildEventStrip(List<EventListItem> events) {
+    if (_loadingEvents && events.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: Colors.brown));
     }
-    if (_eventsError != null && _events.isEmpty) {
+    if (_eventsError != null && events.isEmpty) {
       return Center(
         child: TextButton.icon(
           onPressed: _loadEvents,
@@ -235,7 +266,16 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-    if (_events.isEmpty) {
+    if (events.isEmpty) {
+      if (_selectedCategoryKey != null && _events.isNotEmpty) {
+        return Center(
+          child: TextButton.icon(
+            onPressed: () => setState(() => _selectedCategoryKey = null),
+            icon: const Icon(Icons.filter_alt_off_rounded, color: Colors.brown),
+            label: const Text('No events in this category', style: TextStyle(color: Colors.brown)),
+          ),
+        );
+      }
       return ListView(
         scrollDirection: Axis.horizontal,
         children: const [
@@ -258,9 +298,9 @@ class _HomePageState extends State<HomePage> {
     }
     return ListView.separated(
       scrollDirection: Axis.horizontal,
-      itemCount: _events.length,
+      itemCount: events.length,
       separatorBuilder: (_, __) => const SizedBox(width: 12),
-      itemBuilder: (context, i) => _HomeEventStripCard(event: _events[i]),
+      itemBuilder: (context, i) => _HomeEventStripCard(event: events[i]),
     );
   }
 }
@@ -307,19 +347,29 @@ class _MapCard extends StatelessWidget {
   }
 }
 
-Widget _chip(String label, {bool highlighted = false}) {
-  return Container(
-    margin: const EdgeInsets.only(right: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: highlighted ? const Color(0xFFFFE0C2) : Colors.white,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      label,
-      style: TextStyle(
-        color: Colors.brown.shade700,
-        fontWeight: highlighted ? FontWeight.w700 : FontWeight.w600,
+Widget _filterChip({
+  required String label,
+  required bool selected,
+  required VoidCallback onTap,
+}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFFFFE0C2) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? const Color(0xFFFF6B35) : Colors.transparent,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.brown.shade700,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+        ),
       ),
     ),
   );
