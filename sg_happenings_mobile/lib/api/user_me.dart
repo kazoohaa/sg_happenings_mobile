@@ -7,11 +7,15 @@ class UserMe {
     required this.isEventPoster,
     this.username,
     this.email,
+    this.userId,
   });
 
   final bool isEventPoster;
   final String? username;
   final String? email;
+
+  /// Backend user id (`user_id` / `userID` / nested `user`, or JWT `sub`).
+  final String? userId;
 
   /// Normalizes a role string for comparison (trim, lowercase, single spaces).
   static String normalizeRole(String? raw) {
@@ -68,6 +72,32 @@ class UserMe {
       isEventPoster: poster,
       username: json['username'] as String? ?? json['name'] as String?,
       email: json['email'] as String?,
+      userId: _parseUserId(json),
     );
+  }
+
+  static String? _parseUserId(Map<String, dynamic> json) {
+    for (final k in ['user_id', 'userID', 'userId']) {
+      final v = json[k];
+      if (v != null) {
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+    }
+    final user = json['user'];
+    if (user is Map) {
+      return _parseUserId(Map<String, dynamic>.from(user));
+    }
+    return null;
+  }
+
+  /// When `/users/me` omits `user_id`, JWT claims may still carry `user_id` or `sub`.
+  static String? userIdFromClaims(Map<String, dynamic> claims) {
+    final fromFields = _parseUserId(claims);
+    if (fromFields != null) return fromFields;
+    final sub = claims['sub'];
+    if (sub == null) return null;
+    final s = sub.toString().trim();
+    return s.isEmpty ? null : s;
   }
 }

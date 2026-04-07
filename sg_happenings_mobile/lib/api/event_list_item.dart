@@ -39,8 +39,20 @@ class EventListItem {
   final List<EventMediaItem> media;
 
   static final RegExp _completedWord = RegExp(r'\bcompleted\b', caseSensitive: false);
+  static final RegExp _publishedWord = RegExp(r'\bpublished\b', caseSensitive: false);
   static final RegExp _cancelWord =
       RegExp(r'\bcancel(?:led|ed)?\b', caseSensitive: false);
+
+  /// Poster dashboard: past / finished events (word match on [status]).
+  bool get isStatusCompleted => _completedWord.hasMatch(status);
+
+  /// Poster dashboard: live listing, not completed (e.g. "published").
+  bool get isStatusPublished =>
+      !isStatusCompleted && _publishedWord.hasMatch(status);
+
+  /// Approved events that are neither completed nor published (e.g. "live", "approved").
+  bool get isStatusOtherCurrent =>
+      !isStatusCompleted && !_publishedWord.hasMatch(status);
 
   /// Whether this event should appear on the public browse list (e.g. Events tab).
   /// Hides when [status] indicates completed or cancelled/canceled.

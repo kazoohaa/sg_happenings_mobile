@@ -97,6 +97,109 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
     if (saved == true && mounted) await _bootstrap();
   }
 
+  Future<void> _openEditSubmission(SubmissionRow row) async {
+    final eventId = row.effectiveEventId;
+    if (eventId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing id for this submission.')),
+      );
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Expanded(child: Text('Loading event…')),
+          ],
+        ),
+      ),
+    );
+    try {
+      final event = await eventPosterRepository.getEvent(eventId);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (context) => CreateEditEventPage(existing: event),
+        ),
+      );
+      if (saved == true && mounted) await _bootstrap();
+    } on PosterApiException catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load event: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteSubmission(SubmissionRow row) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete submission?'),
+        content: Text(
+          '“${row.title}” will be removed. This may not be reversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    try {
+      await eventPosterRepository.deleteEvent(row.effectiveEventId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Submission deleted.')),
+      );
+      await _bootstrap();
+    } on PosterApiException catch (e) {
+      if (row.id != row.effectiveEventId) {
+        try {
+          await eventPosterRepository.deleteEventApplication(row.id);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Submission deleted.')),
+          );
+          await _bootstrap();
+          return;
+        } on PosterApiException catch (e2) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e2.message)),
+          );
+          return;
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    }
+  }
+
   Future<void> _confirmDelete(EventListItem event) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -191,38 +294,32 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
                     child: Center(child: CircularProgressIndicator()),
                   ),
                 ),
-              SliverToBoxAdapter(child: _sectionTitle('Approved events')),
+              SliverToBoxAdapter(child: _sectionTitle('Current events')),
               if (_approvedError != null)
                 SliverToBoxAdapter(child: _errorCard(_approvedError!))
               else if (!_loading && _approved.isEmpty)
-                SliverToBoxAdapter(child: _emptyHint('No approved events yet.'))
-              else
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, i) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      child: _ApprovedEventCard(
-                        event: _approved[i],
-                        onTapDetails: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EventsDetailsPage(
-                                event: _approved[i].toDetailMap(),
-                              ),
-                            ),
-                          );
-                        },
-                        onEdit: () => _openEdit(_approved[i]),
-                        onDelete: () => _confirmDelete(_approved[i]),
-                      ),
-                    ),
-                    childCount: _loading ? 0 : _approved.length,
-                  ),
+                SliverToBoxAdapter(
+                  child: _emptyHint('No current events yet.'),
+                )
+              else ...[
+                SliverToBoxAdapter(child: _subsectionTitle('Published')),
+                _approvedEventsSliver(
+                  _publishedOnly(_approved),
+                  loading: _loading,
                 ),
+                SliverToBoxAdapter(child: _subsectionTitle('Completed')),
+                _approvedEventsSliver(
+                  _completedOnly(_approved),
+                  loading: _loading,
+                ),
+                if (_otherCurrentOnly(_approved).isNotEmpty) ...[
+                  SliverToBoxAdapter(child: _subsectionTitle('Other')),
+                  _approvedEventsSliver(
+                    _otherCurrentOnly(_approved),
+                    loading: _loading,
+                  ),
+                ],
+              ],
               SliverToBoxAdapter(child: _sectionTitle('Pending submissions')),
               if (_pendingError != null)
                 SliverToBoxAdapter(child: _errorCard(_pendingError!))
@@ -238,7 +335,11 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
                         horizontal: 16,
                         vertical: 6,
                       ),
-                      child: _SubmissionTile(row: _pending[i]),
+                      child: _SubmissionTile(
+                        row: _pending[i],
+                        onEdit: () => _openEditSubmission(_pending[i]),
+                        onDelete: () => _confirmDeleteSubmission(_pending[i]),
+                      ),
                     ),
                     childCount: _loading ? 0 : _pending.length,
                   ),
@@ -271,6 +372,59 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
     );
   }
 
+  List<EventListItem> _publishedOnly(List<EventListItem> all) =>
+      all.where((e) => e.isStatusPublished).toList();
+
+  List<EventListItem> _completedOnly(List<EventListItem> all) =>
+      all.where((e) => e.isStatusCompleted).toList();
+
+  List<EventListItem> _otherCurrentOnly(List<EventListItem> all) =>
+      all.where((e) => e.isStatusOtherCurrent).toList();
+
+  /// One sliver: cards for [items], or a short empty line when not [loading].
+  Widget _approvedEventsSliver(
+    List<EventListItem> items, {
+    required bool loading,
+  }) {
+    if (loading) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+    if (items.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(left: 20, right: 16, bottom: 10),
+          child: Text(
+            'None yet.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          ),
+        ),
+      );
+    }
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, i) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: _ApprovedEventCard(
+            event: items[i],
+            onTapDetails: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (context) => EventsDetailsPage(
+                    event: items[i].toDetailMap(),
+                  ),
+                ),
+              );
+            },
+            onEdit: () => _openEdit(items[i]),
+            onDelete: () => _confirmDelete(items[i]),
+          ),
+        ),
+        childCount: items.length,
+      ),
+    );
+  }
+
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
@@ -280,6 +434,20 @@ class _PosterDashboardPageState extends State<PosterDashboardPage> {
           fontSize: 18,
           fontWeight: FontWeight.w800,
           color: Colors.brown.shade900,
+        ),
+      ),
+    );
+  }
+
+  Widget _subsectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 16, 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: Colors.brown.shade700,
         ),
       ),
     );
@@ -475,9 +643,15 @@ class _PosterThumb extends StatelessWidget {
 }
 
 class _SubmissionTile extends StatelessWidget {
-  const _SubmissionTile({required this.row});
+  const _SubmissionTile({
+    required this.row,
+    this.onEdit,
+    this.onDelete,
+  });
 
   final SubmissionRow row;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -526,6 +700,26 @@ class _SubmissionTile extends StatelessWidget {
               Text(
                 row.detail!,
                 style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+              ),
+            ],
+            if (onEdit != null || onDelete != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (onEdit != null)
+                    TextButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text('Edit'),
+                    ),
+                  if (onDelete != null)
+                    TextButton.icon(
+                      onPressed: onDelete,
+                      icon: Icon(Icons.delete_outline, size: 18, color: Colors.red[700]),
+                      label: Text('Delete', style: TextStyle(color: Colors.red[700])),
+                    ),
+                ],
               ),
             ],
           ],

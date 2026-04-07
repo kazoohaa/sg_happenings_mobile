@@ -9,7 +9,8 @@ class UsersRepository {
 
   final SgApiClient _api;
 
-  /// Loads the signed-in user. Tries [ApiPaths.usersMe], then `/auth/me`.
+  /// Loads the signed-in user. Tries [ApiPaths.usersMe], then `GET /auth/me`
+  /// if the first call is 404 or 405 (e.g. wrong method on `/users/me`).
   Future<UserMe> getMe() async {
     try {
       final response = await _api.dio.get<dynamic>(ApiPaths.usersMe);
@@ -19,7 +20,8 @@ class UsersRepository {
       }
       return UserMe.fromJson(Map<String, dynamic>.from(data));
     } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
+      final code = e.response?.statusCode;
+      if (code == 404 || code == 405) {
         try {
           final response = await _api.dio.get<dynamic>('/auth/me');
           final data = response.data;

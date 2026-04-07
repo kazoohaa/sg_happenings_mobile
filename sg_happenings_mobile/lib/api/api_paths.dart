@@ -15,5 +15,11 @@ abstract final class ApiPaths {
   /// Past submissions (approved/rejected/published).
   static const eventPosterHistory = '/event-poster/submissions/history';
 
+  /// New event submissions (moderation queue; starts as Pending).
+  static const eventApplications = '/event-applications';
+
   static String eventById(String id) => '/events/$id';
+
+  /// When pending rows use `submission_id` and deletes go through applications, not `/events`.
+  static String eventApplicationById(String id) => '/event-applications/$id';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../notifications/notifications_page.dart';
 import '../event_poster_application/event_poster_application.dart';
+import '../profile/profile_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -30,14 +31,24 @@ class HomePage extends StatelessWidget {
                     },
                     child: const Icon(Icons.notifications_none_rounded, color: Colors.brown),
                   ),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDE9C8),
-                      borderRadius: BorderRadius.circular(18),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const ProfilePage(showBackButton: true),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDE9C8),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(Icons.person, color: Colors.brown),
                     ),
-                    child: const Icon(Icons.person, color: Colors.brown),
                   ),
                 ],
               ),
