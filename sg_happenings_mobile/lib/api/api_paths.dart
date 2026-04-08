@@ -2,6 +2,8 @@
 abstract final class ApiPaths {
   static const health = '/health';
   static const authLogin = '/auth/login';
+  /// User registration (JSON body). Change to `/auth/signup` if your API uses that path.
+  static const authRegister = '/auth/register';
   /// Current user profile (JWT). Used to detect event-poster role.
   static const usersMe = '/users/me';
   static const events = '/events';

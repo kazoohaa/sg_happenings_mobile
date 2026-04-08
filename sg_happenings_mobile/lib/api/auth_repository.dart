@@ -25,6 +25,76 @@ class AuthRepository {
   final SgApiClient _api;
   final AuthTokenStore _tokens;
 
+  /// Registers a new user. Returns `true` if the server returned an access token (auto sign-in).
+  /// Returns `false` if registration succeeded without a token — caller should send the user to login.
+  /// [role] must match your API (e.g. `"User"`). Change if [UserCreate.role] uses another default.
+  Future<bool> register({
+    required String username,
+    required String name,
+    required String email,
+    required String password,
+    String role = 'User',
+  }) async {
+    final u = username.trim();
+    final displayName = name.trim();
+    final em = email.trim();
+    if (u.isEmpty) {
+      throw AuthException('Enter a username.');
+    }
+    if (displayName.isEmpty) {
+      throw AuthException('Enter your name.');
+    }
+    if (em.isEmpty) {
+      throw AuthException('Enter your email.');
+    }
+    if (!_looksLikeEmail(em)) {
+      throw AuthException('Enter a valid email address.');
+    }
+    if (password.isEmpty) {
+      throw AuthException('Enter a password.');
+    }
+    if (password.length < 6) {
+      throw AuthException('Password must be at least 6 characters.');
+    }
+
+    try {
+      final response = await _api.dio.post<dynamic>(
+        ApiPaths.authRegister,
+        data: {
+          'username': u,
+          'name': displayName,
+          'email': em,
+          'password': password,
+          'role': role,
+        },
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      final data = response.data;
+      if (data is! Map) {
+        return false;
+      }
+      final map = Map<String, dynamic>.from(data);
+      final token = map['access_token'] as String? ??
+          map['accessToken'] as String? ??
+          map['token'] as String?;
+      if (token != null && token.isNotEmpty) {
+        await _tokens.setAccessToken(token);
+        await _persistPosterHint(map, token);
+        return true;
+      }
+      return false;
+    } on DioException catch (e) {
+      throw AuthException(_messageFromDio(e));
+    }
+  }
+
+  static bool _looksLikeEmail(String s) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(s);
+  }
+
+  /// Shared with [SignUpPage] form validation (same rules as [register]).
+  static bool isValidEmailForUi(String s) => _looksLikeEmail(s);
+
   Future<void> login({required String username, required String password}) async {
     final trimmed = username.trim();
     if (trimmed.isEmpty) {

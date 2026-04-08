@@ -4,6 +4,7 @@ import '../../api/app_api.dart';
 import '../../api/auth_repository.dart';
 import '../forgot_password/forgot_password_page.dart';
 import '../main_navigation/main_navigation.dart';
+import '../sign_up/sign_up_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -243,7 +244,11 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: _loading
                               ? null
                               : () {
-                                  // TODO: navigate to sign up
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (context) => const SignUpPage(),
+                                    ),
+                                  );
                                 },
                           child: const Text(
                             'New user? Sign up',
