@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../api/app_api.dart';
+import '../../api/category_option.dart';
 import '../../api/event_list_item.dart';
+import '../../api/event_search_filters.dart';
 import '../../api/events_repository.dart';
 import '../events_details/events_details_page.dart';
 
@@ -21,10 +23,36 @@ class _EventsPageState extends State<EventsPage> {
 
   Object? _loadError;
 
+  final TextEditingController _searchController = TextEditingController();
+  String? _categoryFilterKey;
+  List<CategoryOption> _categories = [];
+
+  List<EventListItem> get _visibleEvents {
+    Iterable<EventListItem> list = _events;
+    list = list.where((e) => eventMatchesCategoryKey(e, _categoryFilterKey));
+    final q = _searchController.text;
+    return list.where((e) => eventMatchesSearchQuery(e, q)).toList();
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadCategories();
     _loadInitial();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final list = await eventPosterRepository.listCategories();
+      if (!mounted) return;
+      setState(() => _categories = list);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitial() async {
@@ -101,7 +129,7 @@ class _EventsPageState extends State<EventsPage> {
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
                   child: Row(
                     children: [
                       Icon(
@@ -109,20 +137,45 @@ class _EventsPageState extends State<EventsPage> {
                         color: Colors.grey[600],
                         size: 20,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'Search',
-                          style: TextStyle(
-                            color: Colors.grey[500],
-                            fontSize: 16,
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (_) => setState(() {}),
+                          textInputAction: TextInputAction.search,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: InputBorder.none,
+                            hintText: 'Search events…',
+                            hintStyle: TextStyle(
+                              color: Color(0xFF9E9E9E),
+                              fontSize: 16,
+                            ),
                           ),
+                          style: const TextStyle(fontSize: 16, color: Colors.black87),
                         ),
                       ),
-                      Icon(
-                        Icons.tune,
-                        color: Colors.grey[600],
-                        size: 20,
+                      if (_searchController.text.isNotEmpty)
+                        IconButton(
+                          icon: Icon(Icons.clear, color: Colors.grey[600], size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                          tooltip: 'Clear',
+                        ),
+                      IconButton(
+                        icon: Badge(
+                          isLabelVisible: _categoryFilterKey != null,
+                          smallSize: 8,
+                          child: Icon(
+                            Icons.tune,
+                            color: Colors.grey[600],
+                            size: 22,
+                          ),
+                        ),
+                        onPressed: () => _openCategoryFilterSheet(context),
+                        tooltip: 'Category filter',
                       ),
                     ],
                   ),
@@ -136,6 +189,58 @@ class _EventsPageState extends State<EventsPage> {
           ],
         ),
       ),
+    );
+  }
+
+  void _openCategoryFilterSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Text(
+                  'Category',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: Colors.grey[800],
+                  ),
+                ),
+              ),
+              RadioListTile<String?>(
+                title: const Text('All categories'),
+                value: null,
+                groupValue: _categoryFilterKey,
+                onChanged: (v) {
+                  setState(() => _categoryFilterKey = v);
+                  Navigator.pop(ctx);
+                },
+              ),
+              ..._categories.where((c) => c.name.trim().isNotEmpty).map(
+                    (c) {
+                      final key = c.id.isNotEmpty ? c.id : c.name;
+                      return RadioListTile<String?>(
+                        title: Text(c.name),
+                        value: key,
+                        groupValue: _categoryFilterKey,
+                        onChanged: (v) {
+                          setState(() => _categoryFilterKey = v);
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -166,14 +271,44 @@ class _EventsPageState extends State<EventsPage> {
                 ),
               ],
             )
-          : ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              itemCount: _events.length,
-              itemBuilder: (context, index) {
-                return _EventListCard(event: _events[index]);
-              },
-            ),
+          : _visibleEvents.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.35,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'No events match your search or filters.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey[700], fontSize: 16),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _categoryFilterKey = null);
+                              },
+                              child: const Text('Clear search & category'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: _visibleEvents.length,
+                  itemBuilder: (context, index) {
+                    return _EventListCard(event: _visibleEvents[index]);
+                  },
+                ),
     );
   }
 }

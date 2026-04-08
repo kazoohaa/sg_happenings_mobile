@@ -184,11 +184,33 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.center,
-                  child: SizedBox(
+                  child: Container(
                     width: 320,
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5DC).withValues(alpha: 0.96),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF3E2723),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            minimumSize: const Size.fromHeight(44),
+                          ),
                           onPressed: _loading
                               ? null
                               : () {
@@ -202,14 +224,22 @@ class _LoginPageState extends State<LoginPage> {
                           child: const Text(
                             'Forgot password?',
                             style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Colors.brown.withValues(alpha: 0.12),
+                        ),
                         TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFFD84315),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            minimumSize: const Size.fromHeight(44),
+                          ),
                           onPressed: _loading
                               ? null
                               : () {
@@ -218,9 +248,8 @@ class _LoginPageState extends State<LoginPage> {
                           child: const Text(
                             'New user? Sign up',
                             style: TextStyle(
-                              color: Color(0xFFFF6B35),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),

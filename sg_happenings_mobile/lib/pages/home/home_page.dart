@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../api/app_api.dart';
 import '../../api/category_option.dart';
 import '../../api/event_list_item.dart';
+import '../../api/event_search_filters.dart';
 import '../../api/events_repository.dart';
 import '../event_poster_application/event_poster_application.dart';
 import '../events_details/events_details_page.dart';
@@ -24,15 +25,14 @@ class _HomePageState extends State<HomePage> {
   bool _showPosterApplication = true;
   List<CategoryOption> _categories = [];
   String? _selectedCategoryKey;
+  final TextEditingController _searchController = TextEditingController();
 
   List<EventListItem> get _filteredEvents {
-    final key = _selectedCategoryKey?.trim().toLowerCase();
-    if (key == null || key.isEmpty) return _events;
-    return _events.where((e) {
-      if (e.categoryId.trim().toLowerCase() == key) return true;
-      if (e.categoryName.trim().toLowerCase() == key) return true;
-      return false;
-    }).toList();
+    Iterable<EventListItem> list = _events;
+    list = list.where((e) => eventMatchesCategoryKey(e, _selectedCategoryKey));
+    return list
+        .where((e) => eventMatchesSearchQuery(e, _searchController.text))
+        .toList();
   }
 
   @override
@@ -106,6 +106,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7EEDC),
@@ -169,24 +175,41 @@ class _HomePageState extends State<HomePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   height: 44,
                   child: Row(
-                    children: const [
-                      Icon(Icons.search, color: Colors.brown),
-                      SizedBox(width: 8),
+                    children: [
+                      const Icon(Icons.search, color: Colors.brown, size: 22),
+                      const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          'Search',
-                          style: TextStyle(color: Color(0xFF7A6F66)),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (_) => setState(() {}),
+                          textInputAction: TextInputAction.search,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            border: InputBorder.none,
+                            hintText: 'Search events…',
+                            hintStyle: TextStyle(color: Color(0xFF7A6F66), fontSize: 15),
+                          ),
+                          style: const TextStyle(fontSize: 15, color: Colors.black87),
                         ),
                       ),
+                      if (_searchController.text.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.brown, size: 20),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                          tooltip: 'Clear',
+                        ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 _MapCard(
-                  events: _events,
+                  events: _filteredEvents,
                   loading: _loadingEvents,
                   errorMessage: _eventsError,
                 ),
@@ -277,14 +300,28 @@ class _HomePageState extends State<HomePage> {
       );
     }
     if (events.isEmpty) {
-      if (_selectedCategoryKey != null && _events.isNotEmpty) {
-        return Center(
-          child: TextButton.icon(
-            onPressed: () => setState(() => _selectedCategoryKey = null),
-            icon: const Icon(Icons.filter_alt_off_rounded, color: Colors.brown),
-            label: const Text('No events in this category', style: TextStyle(color: Colors.brown)),
-          ),
-        );
+      if (_events.isNotEmpty) {
+        final hasSearch = _searchController.text.trim().isNotEmpty;
+        final hasCat = _selectedCategoryKey != null;
+        if (hasSearch || hasCat) {
+          return Center(
+            child: TextButton.icon(
+              onPressed: () => setState(() {
+                _searchController.clear();
+                _selectedCategoryKey = null;
+              }),
+              icon: const Icon(Icons.filter_alt_off_rounded, color: Colors.brown),
+              label: Text(
+                hasSearch && hasCat
+                    ? 'No matches — clear search & category'
+                    : hasSearch
+                        ? 'No matches — clear search'
+                        : 'No events in this category',
+                style: const TextStyle(color: Colors.brown),
+              ),
+            ),
+          );
+        }
       }
       return ListView(
         scrollDirection: Axis.horizontal,

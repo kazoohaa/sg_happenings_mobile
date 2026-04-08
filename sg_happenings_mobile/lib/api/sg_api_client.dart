@@ -26,6 +26,9 @@ class SgApiClient {
             if (token != null && token.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $token';
             }
+            if (ApiConfig.serviceApiKey.isNotEmpty) {
+              options.headers['X-API-Key'] = ApiConfig.serviceApiKey;
+            }
             handler.next(options);
           },
         ),

@@ -26,4 +26,7 @@ abstract final class ApiPaths {
 
   /// When pending rows use `submission_id` and deletes go through applications, not `/events`.
   static String eventApplicationById(String id) => '/event-applications/$id';
+
+  /// LLM chat (POST). Body: `{ "messages": [ { "role", "content" }, ... ] }` — adjust in [LlmChatRepository] if needed.
+  static const llmChat = '/chat';
 }
